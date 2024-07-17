@@ -133,7 +133,7 @@ import (
 	"fmt"
 	"time"
 
-	"myapp/blockchain"
+	"myapp/app/blockchain"
 )
 
 func main() {

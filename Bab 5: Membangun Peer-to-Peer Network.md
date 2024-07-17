@@ -1,12 +1,28 @@
 # Bab 5: Membangun Peer-to-Peer Network
 
-Jaringan peer-to-peer (P2P) adalah jaringan yang terdiri dari beberapa node atau komputer yang terhubung secara langsung satu sama lain tanpa memerlukan server pusat. Dalam konteks blockchain, jaringan P2P digunakan untuk mendistribusikan blok transaksi di antara node-node dalam jaringan.
+Dalam bab ini, kita akan membangun jaringan peer-to-peer (P2P) untuk blockchain kita. Jaringan P2P memungkinkan setiap node dalam jaringan untuk berkomunikasi langsung satu sama lain tanpa perlu otoritas pusat. Kita akan mengimplementasikan dasar-dasar jaringan P2P, termasuk menambahkan peer, berkomunikasi dengan peer, dan menangani koneksi masuk.
 
 ## 5.1 Dasar-dasar Jaringan Peer-to-Peer
 
-Di Golang, kita dapat membangun jaringan P2P untuk blockchain dengan menggunakan paket net untuk mengatur koneksi TCP dan encoding/json untuk mengirim dan menerima data dalam format JSON.
+Jaringan Peer-to-Peer (P2P) adalah jaringan di mana setiap node berfungsi sebagai klien dan server sekaligus, memungkinkan pertukaran data langsung antara node tanpa perantara. Dalam konteks blockchain, jaringan P2P memungkinkan distribusi dan sinkronisasi blok di antara semua node dalam jaringan.
 
-File app/peer/peer.go berisi implementasi untuk Peer dan P2PNetwork:
+## 5.2 Implementasi Jaringan P2P di Golang
+
+Berikut adalah implementasi dasar untuk jaringan P2P menggunakan Golang. Struktur folder kita akan seperti ini:
+
+```shell
+app
+-- blockchain
+---- data.go
+---- block.go
+---- blockchain.go
+-- peer
+---- peer.go
+main.go
+go.mod
+```
+
+File app/peer/peer.go berisi:
 
 ```go
 package peer
@@ -88,8 +104,6 @@ func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
 }
 ```
 
-## 5.2 Implementasi Jaringan P2P di Golang
-
 Implementasi di atas menggunakan Golang untuk:
 
 - AddPeer: Menambahkan peer baru ke dalam jaringan P2P.
@@ -99,7 +113,9 @@ Implementasi di atas menggunakan Golang untuk:
 
 ## 5.3 Menghubungkan dan Berkomunikasi dengan Peers
 
-Untuk menghubungkan node dalam jaringan, Anda perlu menjalankan node dengan port yang berbeda untuk mendengarkan koneksi dan mengirim blok. Contoh penggunaan:
+Kita akan memperbarui fungsi main untuk menambahkan kemampuan membuat genesis block, menambahkan transaksi baru, dan mengetes validasi blockchain.
+
+File main.go:
 
 ```go
 package main
@@ -155,10 +171,33 @@ func main() {
 	// Menunggu agar program tetap berjalan
 	select {}
 }
-
 ```
 
 Dalam contoh di atas, kita membuat jaringan P2P baru, menambahkan beberapa peer, mendengarkan koneksi untuk menerima blok, dan mengirim blok genesis ke semua peer dalam jaringan. Fungsi readInput digunakan untuk membaca input dari pengguna (stdin). Setiap kali ada input baru, sebuah blok baru dibuat dengan data tersebut, kemudian blok tersebut ditambahkan ke blockchain lokal dan dibroadcast ke semua peer dalam jaringan. Fungsi readInput dijalankan dalam goroutine terpisah untuk terus-menerus membaca input dari pengguna.
+
+### Cara Menjalankan Peer
+Jika diperhatikan, kode di atas menambahkan peer secara manual, yaitu port 3000, 3001 dan 3002. Untuk itu, kita akan menjalankan peer dengan skenario ada 3 peer masing-masing dengan address localhost:3000, localhost:3001, dan localhost:3002. 
+
+Untuk menjalankan aplikasi ini, Anda perlu menjalankan beberapa instance dari program pada port yang berbeda. Berikut adalah langkah-langkahnya:
+
+Buka terminal dan jalankan perintah untuk memulai node pertama pada port 3000:
+```sh
+go run main.go -port=3000
+```
+
+Buka terminal kedua dan jalankan perintah untuk memulai node kedua pada port 3001:
+
+```sh
+go run main.go -port=3001
+```
+
+Buka terminal ketiga dan jalankan perintah untuk memulai node ketiga pada port 3002:
+
+```sh
+go run main.go -port=3002
+```
+
+Setiap node akan terhubung satu sama lain berdasarkan konfigurasi port yang telah ditentukan. Anda bisa mengetikkan data baru di setiap terminal, yang akan ditambahkan sebagai blok baru dalam blockchain dan dibroadcast ke semua node dalam jaringan.
 
 ## 5.4 Menangani Koneksi dan Pemutusan Koneksi
 

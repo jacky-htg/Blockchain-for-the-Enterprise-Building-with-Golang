@@ -4,78 +4,172 @@ Blockchain adalah rangkaian blok yang diurutkan secara kronologis, dihubungkan s
 
 ## 4.1 Implementasi Blok dan Blockchain
 
-Di Golang, kita mulai dengan mendefinisikan struktur Block yang mencakup Timestamp, Data, PrevBlockHash, dan Hash. Timestamp menandai waktu pembuatan blok, Data menyimpan informasi transaksi, PrevBlockHash adalah hash blok sebelumnya, dan Hash adalah hash dari blok saat ini.
+Struktur aplikasi kita akan berupa :
+```shell
+app
+-- blockchain
+---- data.go
+---- block.go
+---- blockchain.go
+main.go
+go.mod
+```
+
+Untuk membuat modul, jalankan perintah ini di shell 
+
+```shell
+go mod init myapp
+```
+
+File app/blockchain/data.go berisi : 
+```
+package blockchain
+
+type Data struct {
+	Data string
+}
+```
+
+Di Golang, kita mulai dengan mendefinisikan struktur Block yang mencakup Index, Timestamp, Data, PrevHash, dan Hash. Index menandai posisi block berada di indeks ke berapa dalam blockchain, Timestamp menandai waktu pembuatan blok, Data menyimpan informasi transaksi, PrevHash adalah hash blok sebelumnya, dan Hash adalah hash dari blok saat ini. berikut kode app/blockchain/block.go
 
 ```go
-package main
+package blockchain
 
 import (
-    "crypto/sha256"
-    "encoding/hex"
-    "time"
+	"crypto/sha256"
+	"fmt"
 )
 
 type Block struct {
-    Timestamp     int64
-    Data          []byte
-    PrevBlockHash []byte
-    Hash          []byte
+	Index     int
+	Timestamp int64
+	Data      Data
+	PrevHash  []byte
+	Hash      []byte
+}
+```
+
+Sementara Blockchain berisi dari kumpulan Block. 
+
+```
+package blockchain
+
+import (
+	"bytes"
+	"time"
+)
+
+type Blockchain struct {
+	Blocks []Block
+}
+
+func (bc *Blockchain) AddBlock(data string) Block {
+	var newBlock Block
+	if len(bc.Blocks) == 0 {
+		newBlock = createBlock(0, "Genesis Block", []byte{})
+	} else {
+		prevBlock := bc.Blocks[len(bc.Blocks)-1]
+		newBlock = createBlock(prevBlock.Index+1, data, prevBlock.Hash)
+	}
+	bc.Blocks = append(bc.Blocks, newBlock)
+	return newBlock
+}
+
+func createBlock(index int, data string, prevHash []byte) Block {
+	newData := Data{Data: data}
+	block := Block{
+		Index:     index,
+		Timestamp: time.Now().Unix(),
+		Data:      newData,
+		PrevHash:  prevHash,
+		Hash:      []byte{},
+	}
+	block.Hash = block.calculateHash()
+	return block
 }
 ```
 
 ## 4.2 Menghitung Hash dan Validasi Blok
 
-Fungsi calculateHash digunakan untuk menghasilkan hash dari sebuah blok berdasarkan Timestamp, Data, dan PrevBlockHash.
+Fungsi calculateHash digunakan untuk menghasilkan hash dari sebuah blok berdasarkan Timestamp, Data, dan PrevHash. Update file app/blockchain/block.go untuk menambahkan fungsi calculateHash() :
 
 ```go
-func calculateHash(block Block) []byte {
-    record := string(block.Timestamp) + string(block.Data) + string(block.PrevBlockHash)
-    h := sha256.New()
-    h.Write([]byte(record))
-    hashed := h.Sum(nil)
-    return hashed
-}
-
-func isBlockValid(newBlock, oldBlock Block) bool {
-    if oldBlock.Hash != newBlock.PrevBlockHash {
-        return false
-    }
-
-    if calculateHash(newBlock) != newBlock.Hash {
-        return false
-    }
-
-    return true
+func (b *Block) calculateHash() []byte {
+	record := fmt.Sprintf("%d%d%s%s", b.Index, b.Timestamp, b.Data.Data, b.PrevHash)
+	h := sha256.New()
+	h.Write([]byte(record))
+	hashed := h.Sum(nil)
+	return hashed
 }
 ```
 
-Fungsi isBlockValid memvalidasi keabsahan blok baru berdasarkan hash blok sebelumnya dan hash yang dihitung.
+Untuk memvalidasi keabsahan blockchain, kita akan menambahkan Fungsi IsValid. Tambahkan kode berikut di file app/blockchain/blockchain.go
+
+```
+func (bc *Blockchain) IsValid() bool {
+	for i := 1; i < len(bc.Blocks); i++ {
+		currentBlock := bc.Blocks[i]
+		prevBlock := bc.Blocks[i-1]
+
+		if !bytes.Equal(currentBlock.Hash, currentBlock.calculateHash()) {
+			return false
+		}
+		if !bytes.Equal(currentBlock.PrevHash, prevBlock.Hash) {
+			return false
+		}
+	}
+	return true
+}
+```
 
 ## 4.3 Membuat Genesis Block
 
-Genesis block adalah blok pertama dalam blockchain. Ia diinisialisasi tanpa PrevBlockHash dan hash-nya dihitung berdasarkan data awal.
+Genesis block adalah blok pertama dalam blockchain. Ia diinisialisasi tanpa PrevHash dan hash-nya dihitung berdasarkan data awal.
 
 ```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"myapp/blockchain"
+)
+
 func main() {
-    genesisBlock := Block{
-        Timestamp:     time.Now().Unix(),
-        Data:          []byte("Genesis Block"),
-        PrevBlockHash: []byte{},
-    }
-    genesisBlock.Hash = calculateHash(genesisBlock)
+	// Membuat blockchain baru
+	bc := blockchain.Blockchain{}
 
-    blockchain := []Block{genesisBlock}
+	// Menambahkan genesis block
+	genesisBlock := bc.AddBlock("Genesis Block")
 
-    newData := []byte("Data transaksi pertama")
-    newBlock := generateBlock(blockchain[len(blockchain)-1], newData)
-    blockchain = append(blockchain, newBlock)
+	// Menambahkan beberapa transaksi
+	bc.AddBlock("Transaction 1")
+	bc.AddBlock("Transaction 2")
 
-    for _, block := range blockchain {
-        // Output blok
-    }
+	// Menampilkan semua blok dalam blockchain
+	fmt.Println("Blockchain:")
+	for _, block := range bc.Blocks {
+		fmt.Printf("Index: %d\n", block.Index)
+		fmt.Printf("Timestamp: %s\n", time.Unix(block.Timestamp, 0))
+		fmt.Printf("Data: %s\n", block.Data.Data)
+		fmt.Printf("PrevHash: %x\n", block.PrevHash)
+		fmt.Printf("Hash: %x\n", block.Hash)
+		fmt.Println("------------------------------")
+	}
+
+	// Validasi blockchain
+	fmt.Println("Is blockchain valid?", bc.IsValid())
 }
+
 ```
 
-Dalam main(), kita membuat genesis block, menghitung hash-nya, dan menambahkannya ke blockchain. Setelah itu, kita membuat blok baru dan menambahkannya ke blockchain menggunakan fungsi generateBlock.
+Dalam main(), kita membuat genesis block. Setelah itu, kita membuat blok baru dan menambahkannya ke blockchain. Kita juga membuat transaksi baru dan menambahkan-nya ke dalam blockchain, serta melakukan pengecekan apakah blockchain valid atau tidak.
+
+Kita bisa mengetes program di atas dengan menjalankan di shell
+
+```shell
+go run main.go
+```
 
 Dengan memahami langkah-langkah di atas, Anda dapat memulai membangun struktur dasar blockchain menggunakan Golang. Implementasi ini memberikan landasan yang solid untuk memahami konsep dasar blockchain dan bagaimana ia diimplementasikan dalam sebuah aplikasi menggunakan bahasa pemrograman Golang.

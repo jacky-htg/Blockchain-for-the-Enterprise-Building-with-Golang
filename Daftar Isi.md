@@ -18,7 +18,7 @@
 - Instalasi dan Konfigurasi Lingkungan Pengembangan Golang
 - Basic Golang
   
-**Bab 4: Memulai dengan Blockchain Sederhana**
+[**Bab 4: Memulai dengan Blockchain Sederhana**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%204%3A%20Memulai%20dengan%20Blockchain%20Sederhana.md)
 - Struktur Dasar Blockchain di Golang
 - Implementasi Blok dan Blockchain
 - Menghitung Hash dan Validasi Blok

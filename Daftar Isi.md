@@ -24,7 +24,7 @@
 - Menghitung Hash dan Validasi Blok
 - Membuat Genesis Block
 
-**Bab 5: Membangun Peer-to-Peer Network**
+[**Bab 5: Membangun Peer-to-Peer Network**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%205%3A%20Membangun%20Peer-to-Peer%20Network.md)
 - Dasar-dasar Jaringan Peer-to-Peer
 - Implementasi Jaringan P2P di Golang
 - Menghubungkan dan Berkomunikasi dengan Peers

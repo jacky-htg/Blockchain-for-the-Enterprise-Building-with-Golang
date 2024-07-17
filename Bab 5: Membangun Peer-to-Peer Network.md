@@ -1,106 +1,168 @@
 # Bab 5: Membangun Peer-to-Peer Network
 
+Jaringan peer-to-peer (P2P) adalah jaringan yang terdiri dari beberapa node atau komputer yang terhubung secara langsung satu sama lain tanpa memerlukan server pusat. Dalam konteks blockchain, jaringan P2P digunakan untuk mendistribusikan blok transaksi di antara node-node dalam jaringan.
+
 ## 5.1 Dasar-dasar Jaringan Peer-to-Peer
 
-Jaringan Peer-to-Peer (P2P) adalah infrastruktur jaringan yang terdiri dari beberapa node atau komputer yang saling terhubung secara langsung tanpa memerlukan server pusat atau hierarki yang terpusat. Dalam model ini, setiap node berperan ganda sebagai klien dan server, memungkinkan mereka untuk berbagi sumber daya, informasi, atau layanan dengan node lain dalam jaringan.
+Di Golang, kita dapat membangun jaringan P2P untuk blockchain dengan menggunakan paket net untuk mengatur koneksi TCP dan encoding/json untuk mengirim dan menerima data dalam format JSON.
 
-Keunggulan Jaringan Peer-to-Peer:
+File app/peer/peer.go berisi implementasi untuk Peer dan P2PNetwork:
 
-1. Desentralisasi: Tidak adanya otoritas tunggal atau server pusat membuat jaringan P2P lebih tahan terhadap kegagalan satu titik. Setiap node memiliki peran yang setara dalam jaringan, mempromosikan keamanan dan keberlanjutan sistem secara kolektif.
+```go
+package peer
 
-2. Skalabilitas: Jaringan P2P dapat diperluas dengan mudah dengan menambahkan node baru tanpa memerlukan perubahan besar pada infrastruktur yang ada. Ini membuatnya ideal untuk aplikasi yang memerlukan penyebaran besar dan cepat.
+import (
+	"encoding/json"
+	"fmt"
+	"myapp/app/blockchain"
+	"net"
+)
 
-3. Efisiensi: Komunikasi langsung antar node memungkinkan pertukaran data yang efisien dan minim latensi. Hal ini mengurangi ketergantungan pada infrastruktur pusat dan mengoptimalkan penggunaan sumber daya jaringan.
+type Peer struct {
+	address string
+}
 
-4. Resiliensi: Jaringan P2P cenderung lebih tahan terhadap serangan atau gangguan karena tidak ada titik pusat yang dapat diserang. Data dan layanan dapat terus berjalan bahkan jika beberapa node mengalami kegagalan atau tidak aktif.
+type P2PNetwork struct {
+	peers      []Peer
+	Blockchain *blockchain.Blockchain
+}
+
+func NewP2PNetwork() *P2PNetwork {
+	return &P2PNetwork{
+		peers:      make([]Peer, 0),
+		Blockchain: &blockchain.Blockchain{},
+	}
+}
+
+func (p2p *P2PNetwork) AddPeer(address string) {
+	peer := Peer{address: address}
+	p2p.peers = append(p2p.peers, peer)
+}
+
+func (p2p *P2PNetwork) BroadcastBlock(block blockchain.Block) {
+	for _, peer := range p2p.peers {
+		conn, err := net.Dial("tcp", peer.address)
+		if err != nil {
+			fmt.Println("Error connecting to peer:", err)
+			continue
+		}
+		defer conn.Close()
+
+		encoder := json.NewEncoder(conn)
+		if err := encoder.Encode(block); err != nil {
+			fmt.Println("Error encoding block:", err)
+		}
+	}
+}
+
+func (p2p *P2PNetwork) ListenForBlocks(port string) {
+	ln, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		fmt.Println("Error setting up listener:", err)
+		return
+	}
+	defer ln.Close()
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			continue
+		}
+		go p2p.handleConnection(conn)
+	}
+}
+
+func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	decoder := json.NewDecoder(conn)
+	var block blockchain.Block
+	if err := decoder.Decode(&block); err != nil {
+		fmt.Println("Error decoding block:", err)
+		return
+	}
+
+	p2p.Blockchain.AddBlock(block.Data.Data)
+	fmt.Println("Received new block:", block)
+}
+```
 
 ## 5.2 Implementasi Jaringan P2P di Golang
 
-Implementasi jaringan P2P di Golang melibatkan penggunaan package standar net untuk manajemen koneksi dan komunikasi antar node. Di bawah adalah contoh sederhana bagaimana menginisialisasi node dan mendengarkan koneksi masuk:
+Implementasi di atas menggunakan Golang untuk:
+
+- AddPeer: Menambahkan peer baru ke dalam jaringan P2P.
+- BroadcastBlock: Mengirimkan blok transaksi ke semua peer dalam jaringan.
+- ListenForBlocks: Mendengarkan koneksi masuk dari peer lain untuk menerima blok transaksi.
+- handleConnection: Menangani koneksi dari peer lain, mendecode blok yang diterima, dan menambahkannya ke blockchain lokal.
+
+## 5.3 Menghubungkan dan Berkomunikasi dengan Peers
+
+Untuk menghubungkan node dalam jaringan, Anda perlu menjalankan node dengan port yang berbeda untuk mendengarkan koneksi dan mengirim blok. Contoh penggunaan:
 
 ```go
 package main
 
 import (
-    "fmt"
-    "net"
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"myapp/app/blockchain"
+	"myapp/app/peer"
 )
 
-type Node struct {
-    Address string
+func readInput(p2p *peer.P2PNetwork) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		data := scanner.Text()
+		block := p2p.Blockchain.AddBlock(data)
+		p2p.BroadcastBlock(block)
+		fmt.Println("Added new block:", block)
+	}
 }
 
 func main() {
-    node := Node{
-        Address: "localhost:6000",
-    }
+	port := flag.String("port", "3000", "Port to listen on")
+	peerAddress := flag.String("peer", "", "Address of a peer to connect to")
+	flag.Parse()
 
-    listener, err := net.Listen("tcp", node.Address)
-    if err != nil {
-        fmt.Println("Error listening:", err.Error())
-        return
-    }
-    defer listener.Close()
+	// Membuat jaringan P2P baru
+	p2p := peer.NewP2PNetwork()
 
-    fmt.Println("Listening on", node.Address)
+	// Menambahkan peer secara manual
+	if *port == "3000" {
+		p2p.AddPeer("localhost:3001")
+		p2p.AddPeer("localhost:3002")
+	} else if *port == "3001" {
+		p2p.AddPeer("localhost:3000")
+		p2p.AddPeer("localhost:3002")
+	} else if *port == "3002" {
+		p2p.AddPeer("localhost:3000")
+		p2p.AddPeer("localhost:3001")
+	}
+	
+	// Mendengarkan koneksi untuk menerima blok
+	go p2p.ListenForBlocks(*port)
 
-    for {
-        conn, err := listener.Accept()
-        if err != nil {
-            fmt.Println("Error accepting:", err.Error())
-            return
-        }
-        fmt.Println("Connection accepted from", conn.RemoteAddr().String())
-        go handleConnection(conn)
-    }
+	// Membroadcast blok genesis ke semua peer
+	genesisBlock := blockchain.Block{Index: 0, Timestamp: 0, Data: blockchain.Data{Data: "Genesis Block"}}
+	p2p.BroadcastBlock(genesisBlock)
+
+	// Membaca input dari pengguna untuk menambahkan blok baru dan membroadcast-nya
+	go readInput(p2p)
+
+	// Menunggu agar program tetap berjalan
+	select {}
 }
 
-func handleConnection(conn net.Conn) {
-    // Handle incoming connections here
-    defer conn.Close()
-}
 ```
 
-## 5.3 Menghubungkan dan Berkomunikasi dengan Peers
-
-Untuk menghubungkan node dengan peers lain dalam jaringan, setiap node perlu dapat mengelola daftar peer yang dikenal dan mencoba melakukan koneksi ke mereka. Berikut adalah contoh sederhana bagaimana node dapat menghubungkan diri dengan peer:
-
-```go
-func (node *Node) connectToPeer(peerAddress string) error {
-    conn, err := net.Dial("tcp", peerAddress)
-    if err != nil {
-        fmt.Println("Error connecting to peer:", err.Error())
-        return err
-    }
-    defer conn.Close()
-    fmt.Println("Connected to peer", peerAddress)
-    // Handle further communication with peer
-    return nil
-}
-```
+Dalam contoh di atas, kita membuat jaringan P2P baru, menambahkan beberapa peer, mendengarkan koneksi untuk menerima blok, dan mengirim blok genesis ke semua peer dalam jaringan. Fungsi readInput digunakan untuk membaca input dari pengguna (stdin). Setiap kali ada input baru, sebuah blok baru dibuat dengan data tersebut, kemudian blok tersebut ditambahkan ke blockchain lokal dan dibroadcast ke semua peer dalam jaringan. Fungsi readInput dijalankan dalam goroutine terpisah untuk terus-menerus membaca input dari pengguna.
 
 ## 5.4 Menangani Koneksi dan Pemutusan Koneksi
 
-Dalam jaringan P2P, penting untuk menangani koneksi dan pemutusan koneksi dengan baik untuk menjaga integritas dan konsistensi jaringan. Anda dapat menggunakan goroutine untuk menangani setiap koneksi masuk dan keluar, serta mempertahankan daftar peer yang terhubung dan menangani skenario pemutusan koneksi dengan aman.
+Kode yang digunakan untuk menangani koneksi dan pemutusan koneksi dapat ditemukan dalam fungsi handleConnection di app/peer/peer.go. Fungsi ini digunakan untuk menerima blok dari peer lain dan memperbarui blockchain lokal dengan blok yang diterima.
 
-```go
-func handleConnection(conn net.Conn) {
-    defer conn.Close()
-    // Handle incoming messages or data exchange here
-}
-
-func main() {
-    // ...
-    for {
-        conn, err := listener.Accept()
-        if err != nil {
-            fmt.Println("Error accepting:", err.Error())
-            return
-        }
-        fmt.Println("Connection accepted from", conn.RemoteAddr().String())
-        go handleConnection(conn)
-    }
-}
-```
-
-Dengan memahami dasar-dasar jaringan P2P dan implementasinya di Golang, Anda dapat membangun infrastruktur yang mendukung komunikasi antar node secara langsung, sesuai dengan filosofi desentralisasi yang mendasari teknologi blockchain dan aplikasi terkait.
+Dengan memahami implementasi di atas, Anda dapat membangun jaringan peer-to-peer yang sederhana untuk mendukung blockchain menggunakan Golang. Hal ini memungkinkan node dalam jaringan untuk berkomunikasi langsung satu sama lain tanpa memerlukan server pusat, menjadikannya lebih terdesentralisasi dan aman.

@@ -161,9 +161,11 @@ func main() {
 	// Mendengarkan koneksi untuk menerima blok
 	go p2p.ListenForBlocks(*port)
 
-	// Membroadcast blok genesis ke semua peer
-	genesisBlock := blockchain.Block{Index: 0, Timestamp: 0, Data: blockchain.Data{Data: "Genesis Block"}}
-	p2p.BroadcastBlock(genesisBlock)
+	if *port == "3000" {
+		// Membroadcast blok genesis ke semua peer
+		genesisBlock := blockchain.Block{Index: 0, Timestamp: 0, Data: blockchain.Data{Data: "Genesis Block"}}
+		p2p.BroadcastBlock(genesisBlock)
+	}
 
 	// Membaca input dari pengguna untuk menambahkan blok baru dan membroadcast-nya
 	go readInput(p2p)
@@ -176,25 +178,25 @@ func main() {
 Dalam contoh di atas, kita membuat jaringan P2P baru, menambahkan beberapa peer, mendengarkan koneksi untuk menerima blok, dan mengirim blok genesis ke semua peer dalam jaringan. Fungsi readInput digunakan untuk membaca input dari pengguna (stdin). Setiap kali ada input baru, sebuah blok baru dibuat dengan data tersebut, kemudian blok tersebut ditambahkan ke blockchain lokal dan dibroadcast ke semua peer dalam jaringan. Fungsi readInput dijalankan dalam goroutine terpisah untuk terus-menerus membaca input dari pengguna.
 
 ### Cara Menjalankan Peer
-Jika diperhatikan, kode di atas menambahkan peer secara manual, yaitu port 3000, 3001 dan 3002. Untuk itu, kita akan menjalankan peer dengan skenario ada 3 peer masing-masing dengan address localhost:3000, localhost:3001, dan localhost:3002. 
+Jika diperhatikan, kode di atas menambahkan peer secara manual, yaitu port 3000, 3001 dan 3002. Untuk itu, kita akan menjalankan peer dengan skenario ada 3 peer masing-masing dengan address localhost:3000, localhost:3001, dan localhost:3002. Khusus jika kita menjalankan port 3000 maka akan tercipta genesis block.
 
 Untuk menjalankan aplikasi ini, Anda perlu menjalankan beberapa instance dari program pada port yang berbeda. Berikut adalah langkah-langkahnya:
 
-Buka terminal dan jalankan perintah untuk memulai node pertama pada port 3000:
-```sh
-go run main.go -port=3000
-```
-
-Buka terminal kedua dan jalankan perintah untuk memulai node kedua pada port 3001:
-
+Buka terminal dan jalankan perintah untuk memulai node pertama pada port 3001:
 ```sh
 go run main.go -port=3001
 ```
 
-Buka terminal ketiga dan jalankan perintah untuk memulai node ketiga pada port 3002:
+Buka terminal kedua dan jalankan perintah untuk memulai node kedua pada port 3002:
 
 ```sh
 go run main.go -port=3002
+```
+
+Buka terminal ketiga dan jalankan perintah untuk memulai node ketiga pada port 3000:
+
+```sh
+go run main.go -port=3000
 ```
 
 Setiap node akan terhubung satu sama lain berdasarkan konfigurasi port yang telah ditentukan. Anda bisa mengetikkan data baru di setiap terminal, yang akan ditambahkan sebagai blok baru dalam blockchain dan dibroadcast ke semua node dalam jaringan.

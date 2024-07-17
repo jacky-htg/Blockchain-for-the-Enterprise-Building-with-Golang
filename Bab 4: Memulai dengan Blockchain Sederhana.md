@@ -141,7 +141,7 @@ func main() {
 	bc := blockchain.Blockchain{}
 
 	// Menambahkan genesis block
-	genesisBlock := bc.AddBlock("Genesis Block")
+	bc.AddBlock("Genesis Block")
 
 	// Menambahkan beberapa transaksi
 	bc.AddBlock("Transaction 1")

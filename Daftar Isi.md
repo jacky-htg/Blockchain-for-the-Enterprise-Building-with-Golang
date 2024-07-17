@@ -1,6 +1,6 @@
 # Daftar Isi
 
-**Bab 1: Pengantar Blockchain**
+[**Bab 1: Pengantar Blockchain**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%201%3A%20Pengantar%20Blockchain.md)
 - Apa itu Blockchain?
 - Sejarah dan Evolusi Blockchain
 - Komponen Utama Blockchain

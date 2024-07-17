@@ -125,7 +125,6 @@ func readInput(p2p *peer.P2PNetwork) {
 
 func main() {
 	port := flag.String("port", "3000", "Port to listen on")
-	peerAddress := flag.String("peer", "", "Address of a peer to connect to")
 	flag.Parse()
 
 	// Membuat jaringan P2P baru

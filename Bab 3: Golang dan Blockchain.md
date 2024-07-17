@@ -83,3 +83,138 @@ Instal ekstensi atau plugin Golang untuk editor Anda agar mendukung penyorotan s
 Buat proyek Golang pertama Anda dengan menggunakan perintah go mod init nama_proyek untuk menggunakan Go Modules, atau langsung mulai menulis kode Golang Anda dalam struktur direktori GOPATH yang sesuai.
 
 Dengan mengikuti langkah-langkah di atas, Anda siap untuk memulai pengembangan aplikasi menggunakan Golang dengan lingkungan pengembangan yang sudah terkonfigurasi dengan baik.
+
+## 3.4 Basic Golang
+
+Golang, atau biasa disebut Go, adalah bahasa pemrograman yang dikembangkan oleh Google pada tahun 2007 dan dirilis secara resmi pada tahun 2009. Golang dirancang dengan tujuan untuk menyediakan kinerja komputasi yang efisien, kemudahan dalam penulisan kode, dan penanganan konkurensi yang baik. Berikut adalah beberapa konsep dasar yang perlu dipahami dalam pemrograman dengan Golang:
+
+1. Hello World:
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hello, World!")
+}
+```
+
+Program di atas adalah program Hello World sederhana dalam Golang. fmt adalah paket bawaan (standard library) untuk formatting dan output. fmt.Println digunakan untuk mencetak teks ke konsol.
+
+2. Variabel dan Tipe Data:
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+    // Deklarasi variabel
+    var nama string = "John Doe"
+    umur := 30 // Tipe data bisa disimpulkan (inferred)
+
+    fmt.Printf("Nama: %s\n", nama)
+    fmt.Printf("Umur: %d\n", umur)
+}
+```
+
+Golang mendukung deklarasi variabel dengan tipe data eksplisit (var nama string) atau menggunakan penentuan tipe otomatis (umur := 30). Tipe data dasar meliputi int, string, bool, dan lainnya.
+
+3. Struktur Kontrol:
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+    // Penggunaan if else
+    umur := 18
+    if umur >= 18 {
+        fmt.Println("Dewasa")
+    } else {
+        fmt.Println("Remaja")
+    }
+
+    // Penggunaan for loop
+    for i := 1; i <= 5; i++ {
+        fmt.Println(i)
+    }
+}
+```
+
+Golang menggunakan struktur kontrol seperti if, else, dan for yang familiar. Perhatikan penggunaan {} untuk menandai awal dan akhir dari blok kode dalam Golang.
+
+4. Fungsi:
+
+```go
+package main
+
+import "fmt"
+
+func tambah(a, b int) int {
+    return a + b
+}
+
+func main() {
+    hasil := tambah(10, 20)
+    fmt.Println("Hasil penjumlahan:", hasil)
+}
+```
+
+Fungsi dalam Golang dideklarasikan dengan menggunakan kata kunci func. Parameter fungsi didefinisikan dengan format nama tipe_data, dan tipe data kembalian dituliskan setelah parameter.
+
+5. Struktur Data:
+
+```go
+package main
+
+import "fmt"
+
+type Mahasiswa struct {
+    Nama    string
+    Umur    int
+    Jurusan string
+}
+
+func main() {
+    mhs := Mahasiswa{"Alice", 20, "Informatika"}
+    fmt.Println("Nama:", mhs.Nama)
+    fmt.Println("Umur:", mhs.Umur)
+    fmt.Println("Jurusan:", mhs.Jurusan)
+}
+```
+
+Golang mendukung definisi struktur data menggunakan struct, yang memungkinkan pengelompokan data dengan tipe-tipe yang berbeda di dalam satu unit.
+
+6. Konkurensi:
+
+```go
+package main
+
+import (
+    "fmt"
+    "time"
+)
+
+func cetak(nama string) {
+    for i := 1; i <= 5; i++ {
+        fmt.Println(nama, ":", i)
+        time.Sleep(100 * time.Millisecond)
+    }
+}
+
+func main() {
+    go cetak("Goroutine 1")
+    go cetak("Goroutine 2")
+
+    time.Sleep(1 * time.Second)
+}
+```
+
+Golang didesain dengan dukungan konkurensi yang kuat, yang memungkinkan untuk menjalankan fungsi-fungsi secara paralel dengan menggunakan goroutines. Penggunaan go sebelum pemanggilan fungsi menandakan pembuatan goroutine baru.
+
+Golang menawarkan banyak fitur lain seperti handling error, paket-paket bawaan yang kaya, dan performa yang baik, menjadikannya pilihan populer untuk pengembangan aplikasi blockchain dan banyak aplikasi lainnya. 
+
+Jika Anda ingin mempelajari golang lebih lanjut, bisa membaca ["Go Guidance"](https://golang-microservices.rijalasepnugroho.com).

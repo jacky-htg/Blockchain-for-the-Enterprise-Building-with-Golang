@@ -12,7 +12,7 @@
 - Transaksi dan Konsensus
 - Smart Contracts
 
-**Bab 3: Golang dan Blockchain**
+[**Bab 3: Golang dan Blockchain**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%203%3A%20Golang%20dan%20Blockchain.md)
 - Mengapa Memilih Golang untuk Blockchain?
 - Pengenalan Golang
 - Instalasi dan Konfigurasi Lingkungan Pengembangan Golang

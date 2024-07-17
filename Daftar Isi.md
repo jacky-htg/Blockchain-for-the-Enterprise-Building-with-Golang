@@ -6,7 +6,7 @@
 - Komponen Utama Blockchain
 - Manfaat dan Aplikasi Blockchain
 
-**Bab 2: Dasar-dasar Blockchain**
+[**Bab 2: Dasar-dasar Blockchain**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%202%20%3A%20Dasar-dasar%20Blockchain.md)
 - Blok dan Rantai Blok
 - Hashing dan Kriptografi
 - Transaksi dan Konsensus

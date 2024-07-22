@@ -92,25 +92,7 @@ func (pow *ProofOfWork) Validate() bool {
 }
 ```
 
-Update app/blockchain/blockchain.go untuk menambahkan pow saat createBlock():
-
-```go
-func createBlock(index int, data string, prevHash []byte) Block {
-	newData := Data{Data: data}
-	block := Block{
-		Index:     index,
-		Timestamp: time.Now().Unix(),
-		Data:      newData,
-		PrevHash:  prevHash,
-		Hash:      []byte{},
-	}
-	pow := NewProofOfWork(&block)
-	nonce, hash := pow.Run()
-	block.Hash = hash
-	block.Nonce = nonce
-	return block
-}
-```
+Update app/blockchain/blockchain.go untuk menghapus createBlock(), karena sudah tidak ada yang menggunakan.
 
 Dalam implementasi dasar Proof of Work (PoW) yang telah kita bahas, fokus utamanya adalah pada proses penambangan dan validasi blok oleh masing-masing node individu. Namun, PoW sebenarnya adalah bagian dari mekanisme konsensus di mana banyak node di jaringan perlu mencapai kesepakatan tentang blok mana yang akan ditambahkan ke blockchain.
 
@@ -148,9 +130,10 @@ func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
 
 	pow := blockchain.NewProofOfWork(&block)
 	if pow.Validate() {
-		p2p.Blockchain.AddBlock(block.Data.Data)
-		fmt.Println("Received and validated new block:", block)
-		p2p.BroadcastBlock(block)
+		if p2p.Blockchain.AddBlock(block) {
+			fmt.Println("Received and validated new block:", block)
+			p2p.BroadcastBlock(block)
+		}
 	} else {
 		fmt.Println("Received invalid block")
 	}
@@ -191,9 +174,10 @@ func readInput(p2p *peer.P2PNetwork) {
 		newBlock.Nonce = nonce
 
 		if pow.Validate() {
-			p2p.Blockchain.Blocks = append(p2p.Blockchain.Blocks, newBlock)
-			p2p.BroadcastBlock(newBlock)
-			fmt.Println("Added new block:", newBlock)
+			if p2p.Blockchain.AddBlock(newBlock) {
+				p2p.BroadcastBlock(newBlock)
+				fmt.Println("Added new block:", newBlock)
+			}
 		} else {
 			fmt.Println("Failed to validate block")
 		}
@@ -224,9 +208,19 @@ func main() {
 
 	// Membuat dan membroadcast blok genesis
 	genesisBlock := blockchain.Block{Index: 0, Timestamp: time.Now().Unix(), Data: blockchain.Data{Data: "Genesis Block"}}
-	p2p.Blockchain.AddBlock(genesisBlock.Data.Data)
-	p2p.BroadcastBlock(genesisBlock)
+	nonce, hash := pow.Run()
+	genesisBlock.Hash = hash
+	genesisBlock.Nonce = nonce
 
+	if pow.Validate() {
+		if p2p.Blockchain.AddBlock(genesisBlock) {
+			p2p.BroadcastBlock(genesisBlock)
+			fmt.Println("Added new block:", genesisBlock)
+		}
+	} else {
+		fmt.Println("Failed to validate block")
+	}
+	
 	// Membaca input dari pengguna untuk menambahkan blok baru
 	go readInput(p2p)
 
@@ -234,6 +228,21 @@ func main() {
 	select {}
 }
 ```
+
+terakhir, di file app/blockchain/blockchain.go, update fungsi AddBlock() agar hanya menambhakan block baru jika belum ada di blockcahin. Jika sudah ada, maka tidak perlu melakukan apa-apa.
+
+```go
+func (bc *Blockchain) AddBlock(newBlock Block) bool {
+	for _, block := range bc.Blocks {
+		if bytes.Equal(block.Hash, newBlock.Hash) {
+			return false
+		}
+	}
+	bc.Blocks = append(bc.Blocks, newBlock)
+	return true
+}
+```
+
 Dengan pendekatan ini, Anda dapat melihat bagaimana proses konsensus bekerja dalam konteks PoW tanpa perlu voting eksplisit. Penambang yang pertama kali menemukan solusi yang valid memenangkan hak untuk menambahkan blok ke blockchain, dan seluruh jaringan setuju pada blok baru tersebut melalui aturan rantai terpanjang.
 
 ### 6.3 Proof of Stake (PoS) dan Alternatif Lainnya

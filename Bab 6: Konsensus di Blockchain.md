@@ -95,15 +95,6 @@ func (pow *ProofOfWork) Validate() bool {
 Update app/blockchain/blockchain.go untuk menambahkan pow saat createBlock():
 
 ```go
-type Block struct {
-	Index     int
-	Timestamp int64
-	Data      Data
-	PrevHash  []byte
-	Hash      []byte
-	Nonce     int
-}
-
 func createBlock(index int, data string, prevHash []byte) Block {
 	newData := Data{Data: data}
 	block := Block{

@@ -217,20 +217,22 @@ func main() {
 	// Mendengarkan koneksi untuk menerima blok
 	go p2p.ListenForBlocks(*port)
 
-	// Membuat dan membroadcast blok genesis
-	genesisBlock := blockchain.Block{Index: 0, Timestamp: time.Now().Unix(), Data: blockchain.Data{Data: "Genesis Block"}}
-	pow := blockchain.NewProofOfWork(&genesisBlock)
-	nonce, hash := pow.Run()
-	genesisBlock.Hash = hash
-	genesisBlock.Nonce = nonce
+	if *port == "3000" {
+		// Membuat dan membroadcast blok genesis
+		genesisBlock := blockchain.Block{Index: 0, Timestamp: time.Now().Unix(), Data: blockchain.Data{Data: "Genesis Block"}}
+		pow := blockchain.NewProofOfWork(&genesisBlock)
+		nonce, hash := pow.Run()
+		genesisBlock.Hash = hash
+		genesisBlock.Nonce = nonce
 
-	if pow.Validate() {
-		if p2p.Blockchain.AddBlock(genesisBlock) {
-			p2p.BroadcastBlock(genesisBlock)
-			fmt.Println("Added new block:", genesisBlock)
+		if pow.Validate() {
+			if p2p.Blockchain.AddBlock(genesisBlock) {
+				p2p.BroadcastBlock(genesisBlock)
+				fmt.Println("Added new block:", genesisBlock)
+			}
+		} else {
+			fmt.Println("Failed to validate block")
 		}
-	} else {
-		fmt.Println("Failed to validate block")
 	}
 	
 	// Membaca input dari pengguna untuk menambahkan blok baru

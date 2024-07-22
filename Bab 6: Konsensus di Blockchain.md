@@ -112,33 +112,6 @@ func createBlock(index int, data string, prevHash []byte) Block {
 }
 ```
 
-Tambahkan validasi blok dalam metode handleConnection pada app/peer/peer.go untuk memastikan blok yang diterima valid sebelum ditambahkan ke blockchain.
-
-Update app/peer/peer.go:
-
-```go
-func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
-	defer conn.Close()
-
-	decoder := json.NewDecoder(conn)
-	var block blockchain.Block
-	if err := decoder.Decode(&block); err != nil {
-		fmt.Println("Error decoding block:", err)
-		return
-	}
-
-	pow := blockchain.NewProofOfWork(&block)
-	if pow.Validate() {
-		p2p.Blockchain.AddBlock(block.Data.Data)
-		fmt.Println("Received new block:", block)
-	} else {
-		fmt.Println("Received invalid block")
-	}
-}
-```
-
-Dengan perubahan ini, setiap kali blok baru diterima melalui jaringan P2P, blok tersebut divalidasi menggunakan metode Validate dari Proof of Work sebelum ditambahkan ke blockchain.
-
 Dalam implementasi dasar Proof of Work (PoW) yang telah kita bahas, fokus utamanya adalah pada proses penambangan dan validasi blok oleh masing-masing node individu. Namun, PoW sebenarnya adalah bagian dari mekanisme konsensus di mana banyak node di jaringan perlu mencapai kesepakatan tentang blok mana yang akan ditambahkan ke blockchain.
 
 Berikut ini adalah tambahan penjelasan tentang bagaimana konsensus di jaringan PoW melibatkan "voting" dari node di jaringan.
@@ -160,7 +133,7 @@ Berikut ini adalah tambahan penjelasan tentang bagaimana konsensus di jaringan P
 Ini dikenal sebagai aturan "rantai terpanjang", di mana rantai terpanjang akan menjadi blockchain yang diadopsi oleh seluruh jaringan.
 
 ### Memvalidasi PoW pada Fungsi handleConnection
-Untuk memverifikasi bahwa blok yang diterima valid menurut PoW, kita perlu menambahkan validasi PoW pada fungsi handleConnection di file .
+Untuk memverifikasi bahwa blok yang diterima valid menurut PoW, kita perlu menambahkan validasi PoW pada fungsi handleConnection di file app/peer/peer.go
 
 ```go
 func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
@@ -177,6 +150,7 @@ func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
 	if pow.Validate() {
 		p2p.Blockchain.AddBlock(block.Data.Data)
 		fmt.Println("Received and validated new block:", block)
+		p2p.BroadcastBlock(block)
 	} else {
 		fmt.Println("Received invalid block")
 	}

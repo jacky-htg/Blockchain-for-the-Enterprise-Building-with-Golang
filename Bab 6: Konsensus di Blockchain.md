@@ -219,6 +219,7 @@ func main() {
 
 	// Membuat dan membroadcast blok genesis
 	genesisBlock := blockchain.Block{Index: 0, Timestamp: time.Now().Unix(), Data: blockchain.Data{Data: "Genesis Block"}}
+	pow := blockchain.NewProofOfWork(&genesisBlock)
 	nonce, hash := pow.Run()
 	genesisBlock.Hash = hash
 	genesisBlock.Nonce = nonce

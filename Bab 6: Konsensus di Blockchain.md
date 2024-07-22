@@ -121,6 +121,156 @@ func createBlock(index int, data string, prevHash []byte) Block {
 }
 ```
 
+Tambahkan validasi blok dalam metode handleConnection pada app/peer/peer.go untuk memastikan blok yang diterima valid sebelum ditambahkan ke blockchain.
+
+Update app/peer/peer.go:
+
+```go
+func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	decoder := json.NewDecoder(conn)
+	var block blockchain.Block
+	if err := decoder.Decode(&block); err != nil {
+		fmt.Println("Error decoding block:", err)
+		return
+	}
+
+	pow := blockchain.NewProofOfWork(&block)
+	if pow.Validate() {
+		p2p.Blockchain.AddBlock(block.Data.Data)
+		fmt.Println("Received new block:", block)
+	} else {
+		fmt.Println("Received invalid block")
+	}
+}
+```
+
+Dengan perubahan ini, setiap kali blok baru diterima melalui jaringan P2P, blok tersebut divalidasi menggunakan metode Validate dari Proof of Work sebelum ditambahkan ke blockchain.
+
+Dalam implementasi dasar Proof of Work (PoW) yang telah kita bahas, fokus utamanya adalah pada proses penambangan dan validasi blok oleh masing-masing node individu. Namun, PoW sebenarnya adalah bagian dari mekanisme konsensus di mana banyak node di jaringan perlu mencapai kesepakatan tentang blok mana yang akan ditambahkan ke blockchain.
+
+Berikut ini adalah tambahan penjelasan tentang bagaimana konsensus di jaringan PoW melibatkan "voting" dari node di jaringan.
+
+### Bagaimana Konsensus PoW Bekerja dalam Jaringan
+1. Penambangan (Mining):
+   - Setiap node di jaringan berlomba-lomba untuk memecahkan teka-teki kriptografi dengan menghitung hash dari blok yang memenuhi target kesulitan.
+   - Node yang berhasil menemukan hash yang valid terlebih dahulu akan menambahkan blok tersebut ke blockchain-nya dan menyiarkan (broadcast) blok tersebut ke jaringan.
+
+2. Voting oleh Node di Jaringan:
+   - Ketika node menerima blok baru yang valid, mereka memverifikasi blok tersebut dengan memeriksa apakah hash-nya memenuhi target kesulitan dan apakah semua transaksi di dalam blok valid.
+   - Jika blok valid, node akan menambahkan blok tersebut ke blockchain mereka. Ini adalah bentuk "voting" di mana node menyetujui blok yang baru ditambang.
+
+3. Kesepakatan Mayoritas:
+   - Konsensus dicapai ketika mayoritas node di jaringan telah menambahkan blok yang sama ke blockchain mereka. Ini berarti mayoritas node telah "memvoting" blok tersebut sebagai valid.
+
+4. Rantai Terpanjang:
+   - Jika terdapat lebih dari satu blok valid yang diusulkan dalam waktu yang bersamaan, node akan terus menambang blok berikutnya. Blok yang menjadi bagian dari rantai terpanjang (dengan bukti kerja terbanyak) dianggap sebagai rantai yang valid oleh mayoritas node.
+Ini dikenal sebagai aturan "rantai terpanjang", di mana rantai terpanjang akan menjadi blockchain yang diadopsi oleh seluruh jaringan.
+
+### Memvalidasi PoW pada Fungsi handleConnection
+Untuk memverifikasi bahwa blok yang diterima valid menurut PoW, kita perlu menambahkan validasi PoW pada fungsi handleConnection di file .
+
+```go
+func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	decoder := json.NewDecoder(conn)
+	var block blockchain.Block
+	if err := decoder.Decode(&block); err != nil {
+		fmt.Println("Error decoding block:", err)
+		return
+	}
+
+	pow := blockchain.NewProofOfWork(&block)
+	if pow.Validate() {
+		p2p.Blockchain.AddBlock(block.Data.Data)
+		fmt.Println("Received and validated new block:", block)
+	} else {
+		fmt.Println("Received invalid block")
+	}
+}
+```
+
+Dengan implementasi ini, node di jaringan akan menerima blok baru, memverifikasi keabsahannya menggunakan PoW, dan kemudian menambahkan blok tersebut ke blockchain mereka jika valid. Node juga akan membroadcast blok baru yang mereka terima, memungkinkan seluruh jaringan mencapai konsensus berdasarkan aturan rantai terpanjang.
+
+### Proses Penambahan Blok dengan PoW di Jaringan P2P
+Berikut adalah contoh bagaimana menjalankan peer dengan PoW untuk proses penambahan blok.
+
+```go
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"myapp/app/blockchain"
+	"myapp/app/peer"
+	"os"
+	"time"
+)
+
+func readInput(p2p *peer.P2PNetwork) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		data := scanner.Text()
+		newBlock := blockchain.Block{
+			Index:     len(p2p.Blockchain.Blocks),
+			Timestamp: time.Now().Unix(),
+			Data:      blockchain.Data{Data: data},
+			PrevHash:  p2p.Blockchain.Blocks[len(p2p.Blockchain.Blocks)-1].Hash,
+		}
+		pow := blockchain.NewProofOfWork(&newBlock)
+		nonce, hash := pow.Run()
+		newBlock.Hash = hash
+		newBlock.Nonce = nonce
+
+		if pow.Validate() {
+			p2p.Blockchain.Blocks = append(p2p.Blockchain.Blocks, newBlock)
+			p2p.BroadcastBlock(newBlock)
+			fmt.Println("Added new block:", newBlock)
+		} else {
+			fmt.Println("Failed to validate block")
+		}
+	}
+}
+
+func main() {
+	port := flag.String("port", "3000", "Port to listen on")
+	flag.Parse()
+
+	// Membuat jaringan P2P baru
+	p2p := peer.NewP2PNetwork()
+
+	// Menambahkan peer secara manual
+	if *port == "3000" {
+		p2p.AddPeer("localhost:3001")
+		p2p.AddPeer("localhost:3002")
+	} else if *port == "3001" {
+		p2p.AddPeer("localhost:3000")
+		p2p.AddPeer("localhost:3002")
+	} else if *port == "3002" {
+		p2p.AddPeer("localhost:3000")
+		p2p.AddPeer("localhost:3001")
+	}
+
+	// Mendengarkan koneksi untuk menerima blok
+	go p2p.ListenForBlocks(*port)
+
+	// Membuat dan membroadcast blok genesis
+	genesisBlock := blockchain.Block{Index: 0, Timestamp: time.Now().Unix(), Data: blockchain.Data{Data: "Genesis Block"}}
+	p2p.Blockchain.AddBlock(genesisBlock.Data.Data)
+	p2p.BroadcastBlock(genesisBlock)
+
+	// Membaca input dari pengguna untuk menambahkan blok baru
+	go readInput(p2p)
+
+	// Menunggu agar program tetap berjalan
+	select {}
+}
+```
+Dengan pendekatan ini, Anda dapat melihat bagaimana proses konsensus bekerja dalam konteks PoW tanpa perlu voting eksplisit. Penambang yang pertama kali menemukan solusi yang valid memenangkan hak untuk menambahkan blok ke blockchain, dan seluruh jaringan setuju pada blok baru tersebut melalui aturan rantai terpanjang.
+
 ### 6.3 Proof of Stake (PoS) dan Alternatif Lainnya
 
 Proof of Stake (PoS) adalah mekanisme konsensus yang memilih validator untuk membuat blok baru berdasarkan jumlah cryptocurrency yang mereka miliki dan "stake" dalam jaringan. PoS lebih hemat energi dibandingkan PoW.

@@ -25,7 +25,20 @@ main.go
 go.mod
 ```
 
-File app/blockchain/pow.go:
+Pertama kita akan menambahkan Nonce di dalam struct Block. Update file app/blockchain/block.go
+
+```go
+type Block struct {
+	Index     int
+	Timestamp int64
+	Data      Data
+	PrevHash  []byte
+	Hash      []byte
+	Nonce     int
+}
+```
+
+Kemudian buat File app/blockchain/pow.go:
 
 ```go
 package blockchain

@@ -92,7 +92,7 @@ func (pow *ProofOfWork) Validate() bool {
 }
 ```
 
-Update app/blockchain/block.go:
+Update app/blockchain/blockchain.go untuk menambahkan pow saat createBlock():
 
 ```go
 type Block struct {

@@ -105,8 +105,6 @@ func (pow *ProofOfWork) Validate() bool {
 }
 ```
 
-Update app/blockchain/blockchain.go untuk menghapus createBlock(), karena sudah tidak ada yang menggunakan.
-
 Dalam implementasi dasar Proof of Work (PoW) yang telah kita bahas, fokus utamanya adalah pada proses penambangan dan validasi blok oleh masing-masing node individu. Namun, PoW sebenarnya adalah bagian dari mekanisme konsensus di mana banyak node di jaringan perlu mencapai kesepakatan tentang blok mana yang akan ditambahkan ke blockchain.
 
 Berikut ini adalah tambahan penjelasan tentang bagaimana konsensus di jaringan PoW melibatkan "voting" dari node di jaringan.
@@ -255,6 +253,8 @@ func (bc *Blockchain) AddBlock(newBlock Block) bool {
 	return true
 }
 ```
+
+Dengan perubahan fungsi AddBlock(), maka fungsi cfreate menjadi tidak ada yang menggunakan. Update app/blockchain/blockchain.go untuk menghapus createBlock().
 
 Dengan pendekatan ini, Anda dapat melihat bagaimana proses konsensus bekerja dalam konteks PoW tanpa perlu voting eksplisit. Penambang yang pertama kali menemukan solusi yang valid memenangkan hak untuk menambahkan blok ke blockchain, dan seluruh jaringan setuju pada blok baru tersebut melalui aturan rantai terpanjang.
 

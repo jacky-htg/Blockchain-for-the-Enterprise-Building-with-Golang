@@ -258,6 +258,22 @@ Dengan perubahan fungsi AddBlock(), maka fungsi cfreate menjadi tidak ada yang m
 
 Dengan pendekatan ini, Anda dapat melihat bagaimana proses konsensus bekerja dalam konteks PoW tanpa perlu voting eksplisit. Penambang yang pertama kali menemukan solusi yang valid memenangkan hak untuk menambahkan blok ke blockchain, dan seluruh jaringan setuju pada blok baru tersebut melalui aturan rantai terpanjang.
 
+Untuk mencoba menjalankan P2P, bisa lakukan seperti langkah sebelumnya.
+
+```
+go run main.go -port=3001
+```
+
+```
+go run main.go -port=3002
+```
+
+dan 
+
+```
+go run main.go -port=3000
+```
+
 ### 6.3 Proof of Stake (PoS) dan Alternatif Lainnya
 
 Proof of Stake (PoS) adalah mekanisme konsensus yang memilih validator untuk membuat blok baru berdasarkan jumlah cryptocurrency yang mereka miliki dan "stake" dalam jaringan. PoS lebih hemat energi dibandingkan PoW.

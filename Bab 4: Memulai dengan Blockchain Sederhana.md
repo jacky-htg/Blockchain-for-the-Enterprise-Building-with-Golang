@@ -5,7 +5,7 @@ Blockchain adalah rangkaian blok yang diurutkan secara kronologis, dihubungkan s
 ## 4.1 Implementasi Blok dan Blockchain
 
 Struktur aplikasi kita akan berupa :
-```shell
+```console
 app
 -- blockchain
 ---- data.go
@@ -17,7 +17,7 @@ go.mod
 
 Untuk membuat modul, jalankan perintah ini di shell 
 
-```shell
+```console
 go mod init myapp
 ```
 
@@ -84,7 +84,7 @@ func createBlock(index int, data string, prevHash []byte) Block {
 }
 ```
 
-Kode di atas jika dijalankan akan error, karena saat ini, Block belum mempunyai metho calculateHash().
+Kode di atas jika dijalankan akan error, karena saat ini, Block belum mempunyai method calculateHash().
 
 ## 4.2 Menghitung Hash dan Validasi Blok
 
@@ -107,7 +107,7 @@ func (b *Block) calculateHash() []byte {
 
 Untuk memvalidasi keabsahan blockchain, kita akan menambahkan Fungsi IsValid. Tambahkan kode berikut di file app/blockchain/blockchain.go
 
-```
+```go
 func (bc *Blockchain) IsValid() bool {
 	for i := 1; i < len(bc.Blocks); i++ {
 		currentBlock := bc.Blocks[i]
@@ -170,7 +170,7 @@ Dalam main(), kita membuat genesis block. Setelah itu, kita membuat blok baru da
 
 Kita bisa mengetes program di atas dengan menjalankan di shell
 
-```shell
+```console
 go run main.go
 ```
 

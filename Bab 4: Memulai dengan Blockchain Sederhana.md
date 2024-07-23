@@ -22,7 +22,7 @@ go mod init myapp
 ```
 
 File app/blockchain/data.go berisi : 
-```
+```go
 package blockchain
 
 type Data struct {
@@ -46,7 +46,7 @@ type Block struct {
 
 Sementara Blockchain berisi dari kumpulan Block. 
 
-```
+```go
 package blockchain
 
 import (
@@ -89,6 +89,11 @@ func createBlock(index int, data string, prevHash []byte) Block {
 Fungsi calculateHash digunakan untuk menghasilkan hash dari sebuah blok berdasarkan Timestamp, Data, dan PrevHash. Update file app/blockchain/block.go untuk menambahkan fungsi calculateHash() :
 
 ```go
+import (
+	"crypto/sha256"
+	"fmt"
+)
+
 func (b *Block) calculateHash() []byte {
 	record := fmt.Sprintf("%d%d%s%s", b.Index, b.Timestamp, b.Data.Data, b.PrevHash)
 	h := sha256.New()

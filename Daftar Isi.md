@@ -32,9 +32,8 @@
 
 [**Bab 6: Konsensus di Blockchain**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%206%3A%20Konsensus%20di%20Blockchain.md)
 - Memahami Konsensus di Blockchain
-- Proof of Work (PoW) dan Implementasinya di Golang
-- Proof of Stake (PoS) dan Alternatif Lainnya
 - Memilih Protokol Konsensus yang Tepat
+- Proof of Work (PoW) dan Implementasinya di Golang
 
 **Bab 7: Publikasi dan Subskripsi**
 - Apa itu Pub/Sub?

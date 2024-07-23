@@ -301,6 +301,18 @@ Dengan perubahan fungsi AddBlock(), maka fungsi createBlock menjadi tidak ada ya
 
 Dengan pendekatan ini, Anda dapat melihat bagaimana proses konsensus bekerja dalam konteks PoW tanpa perlu voting eksplisit. Penambang yang pertama kali menemukan solusi yang valid memenangkan hak untuk menambahkan blok ke blockchain, dan seluruh jaringan setuju pada blok baru tersebut melalui aturan rantai terpanjang.
 
+### Aturan Rantai Terpanjang
+
+Saat ini, aplikasi blockchain yang dibangun belum mengimplementasikan konsep "Aturan Rantai Terpanjang". Ini dilakukan dengan membandingkan blockchain yang dibroadcast dengan blockchain di local. Jika blockchain yang dibroadcast lebih panjang, maka kita akan mengganti blockchain local dengan blockchain yang diterima.
+
+Kita akan melakukannya dengan memodifikasi file app/peer/peer.go 
+
+1. BroadcastBlock diganti menjadi BroadcastBlockchain
+2. Fungsi handleConnection() ketika menerima blockchain yang dibroadcast, akan melakukan verifikasi blockchain, jika incoming blockchain lebih panjang dari local blockchain, maka update local blockchain dengan incomeing blockchain.
+3. Untuk itu perlu dibuat fungsi VerifyAndUpdateBlockchain(), yang logic dasarnya diambil dari fungsi Blockchain.IsValid() dan ditambahakn logic untuk mengecek rantai terpanjang antara incoming dan local blockchain. Karena logic validasi blockchain dipindah ke sini, maka methode Blockchain.IsValid() dihapus.
+4. Karena validasi dipanggil di package peer, maka fungsi Block.calculateHash() perlu diexport diubah menjadi Block.CalculateHash() 
+
+
 Untuk mencoba menjalankan P2P, bisa lakukan seperti langkah sebelumnya.
 
 ```console

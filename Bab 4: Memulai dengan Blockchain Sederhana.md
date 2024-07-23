@@ -35,11 +35,6 @@ Di Golang, kita mulai dengan mendefinisikan struktur Block yang mencakup Index, 
 ```go
 package blockchain
 
-import (
-	"crypto/sha256"
-	"fmt"
-)
-
 type Block struct {
 	Index     int
 	Timestamp int64

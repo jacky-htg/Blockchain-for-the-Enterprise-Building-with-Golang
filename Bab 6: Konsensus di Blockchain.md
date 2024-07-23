@@ -6,13 +6,29 @@ Konsensus adalah mekanisme yang digunakan untuk mencapai kesepakatan di antara n
 
 Konsensus di blockchain adalah proses di mana semua node dalam jaringan setuju pada satu versi dari data yang benar. Ini mencegah penipuan seperti double-spending dan memastikan integritas data. Mekanisme konsensus yang paling umum adalah Proof of Work (PoW) dan Proof of Stake (PoS), tetapi ada juga banyak alternatif lainnya.
 
-## 6.2 Proof of Work (PoW) dan Implementasinya di Golang
+PoW adalah mekanisme konsensus yang pertama kali digunakan di blockchain, sementara PoS hadir dengan pendekatan berbeda untuk mengatasi persoalan konsumsi energi. PoS adalah mekanisme konsensus yang memilih validator untuk membuat blok baru berdasarkan jumlah cryptocurrency yang mereka miliki dan "stake" dalam jaringan. PoS lebih hemat energi dibandingkan PoW.
+
+## 6.2 Memilih Protokol Konsensus yang Tepat
+
+Memilih protokol konsensus yang tepat tergantung pada berbagai faktor, termasuk kebutuhan keamanan, efisiensi energi, dan skala jaringan. PoW menawarkan keamanan tinggi tetapi tidak efisien secara energi, sementara PoS lebih efisien tetapi memerlukan mekanisme untuk mencegah sentralisasi kekuasaan.
+
+Kesimpulan:
+
+- Proof of Work (PoW): Baik untuk keamanan tinggi tetapi membutuhkan banyak energi.
+- Proof of Stake (PoS): Lebih efisien energi, tetapi perlu pengaturan untuk memastikan desentralisasi.
+- Alternatif lainnya: Seperti Delegated Proof of Stake (DPoS), Practical Byzantine Fault Tolerance (PBFT), dan lainnya yang menawarkan berbagai keseimbangan antara keamanan, efisiensi, dan desentralisasi.
+
+Dengan memahami dan mengimplementasikan mekanisme konsensus ini, kita bisa memilih solusi yang paling sesuai dengan kebutuhan spesifik dari jaringan blockchain yang kita bangun.
+
+Dalam bab ini, kita akan mengimplementasikan salah satu konsensus yang muncul paling awal, yaitu PoW.
+
+## 6.3 Proof of Work (PoW) dan Implementasinya di Golang
 
 Proof of Work (PoW) adalah mekanisme konsensus yang mengharuskan node untuk memecahkan teka-teki kriptografi yang kompleks untuk menambahkan blok baru ke blockchain. Berikut adalah implementasi PoW sederhana di Golang.
 
 Struktur Folder:
 
-```shell
+```console
 app
 -- blockchain
 ---- data.go
@@ -104,8 +120,32 @@ func (pow *ProofOfWork) Validate() bool {
 	return hashInt.Cmp(pow.target) == -1
 }
 ```
+Dari struct ProofOfWork di atas, fungsi utama yang perlu dihighlight adalah fungsi Run(). Fungsi Run dalam ProofOfWork sangat penting untuk menjaga integritas dan keamanan blockchain. Mari kita bahas mengapa fungsi ini diperlukan dan bagaimana kaitannya dengan keamanan dari penipuan atau kecurangan:
 
-Dalam implementasi dasar Proof of Work (PoW) yang telah kita bahas, fokus utamanya adalah pada proses penambangan dan validasi blok oleh masing-masing node individu. Namun, PoW sebenarnya adalah bagian dari mekanisme konsensus di mana banyak node di jaringan perlu mencapai kesepakatan tentang blok mana yang akan ditambahkan ke blockchain.
+Sebagai inti dari PoW, fungsi Run() mempunyai 2 tujuan penting, yaitu:
+1. **Menemukan Nonce yang Valid**. Fungsi ini mencari nilai nonce yang menghasilkan hash blok yang memenuhi syarat target kesulitan (target). Hash yang dihasilkan harus lebih kecil dari nilai target yang telah ditentukan.
+2. **Menyediakan Bukti Kerja**. Proof of Work (PoW) adalah mekanisme yang memastikan bahwa penambangan blok memerlukan usaha komputasi yang signifikan. Ini membuat proses penambangan memakan waktu dan energi.
+
+### Proses dalam Fungsi Run
+1. Menggabungkan Data. Fungsi prepareData menggabungkan beberapa elemen blok (seperti indeks, timestamp, data, hash sebelumnya, dan nonce) menjadi satu data yang akan di-hash.
+2. Hashing dan Perbandingan. sha256.Sum256 digunakan untuk menghasilkan hash dari data yang sudah digabungkan.
+Hash tersebut dikonversi menjadi bilangan besar (hashInt). Fungsi Cmp membandingkan hash dengan target. Jika hash lebih kecil dari target, maka nonce ditemukan dan loop berhenti.
+
+### Mengapa Ini Penting untuk Keamanan
+1. Menghindari Blok Palsu. Dengan memerlukan bukti kerja yang valid, sulit bagi seseorang untuk membuat blok palsu karena harus melakukan usaha komputasi yang sama.
+2. Mencegah Penipuan. Proses PoW memastikan bahwa setiap blok yang ditambahkan ke blockchain adalah hasil dari usaha komputasi yang sah. Ini mencegah penambang dari mencoba menambahkan blok palsu atau merubah blok yang sudah ada tanpa melakukan usaha yang diperlukan.
+3. Keamanan Terhadap Serangan Sybil. PoW membuat serangan Sybil (di mana seorang penyerang membuat banyak identitas palsu untuk menguasai jaringan) menjadi sangat mahal secara komputasi, karena setiap identitas palsu harus menyelesaikan PoW yang sah.
+
+### Tanpa PoW
+Jika tidak ada mekanisme seperti PoW, maka siapa saja bisa dengan mudah membuat dan menambahkan blok baru tanpa perlu usaha yang signifikan. Ini akan membuka pintu bagi berbagai bentuk penipuan dan kecurangan, seperti:
+
+1. Blok Palsu. Penambang bisa dengan mudah menambahkan blok palsu ke blockchain tanpa perlu usaha komputasi.
+2. Serangan Double-Spending. Penyerang bisa dengan mudah menciptakan blok baru untuk membalikkan transaksi dan melakukan pengeluaran ganda.
+3. Pengendalian Jaringan. Tanpa mekanisme PoW, jaringan bisa dikuasai oleh pihak yang menciptakan banyak identitas palsu (serangan Sybil), sehingga mereka bisa mengendalikan blockchain dan memanipulasi data.
+
+Jadi, fungsi Run dalam ProofOfWork adalah bagian krusial dari mekanisme keamanan yang menjaga integritas dan ketahanan blockchain terhadap berbagai bentuk serangan dan kecurangan.
+
+Dalam implementasi dasar Proof of Work (PoW) yang telah kita bahas di atas, fokus utamanya adalah pada proses penambangan dan validasi blok oleh masing-masing node individu. Namun, PoW sebenarnya adalah bagian dari mekanisme konsensus di mana banyak node di jaringan perlu mencapai kesepakatan tentang blok mana yang akan ditambahkan ke blockchain.
 
 Berikut ini adalah tambahan penjelasan tentang bagaimana konsensus di jaringan PoW melibatkan "voting" dari node di jaringan.
 
@@ -116,7 +156,7 @@ Berikut ini adalah tambahan penjelasan tentang bagaimana konsensus di jaringan P
 
 2. Voting oleh Node di Jaringan:
    - Ketika node menerima blok baru yang valid, mereka memverifikasi blok tersebut dengan memeriksa apakah hash-nya memenuhi target kesulitan dan apakah semua transaksi di dalam blok valid.
-   - Jika blok valid, node akan menambahkan blok tersebut ke blockchain mereka. Ini adalah bentuk "voting" di mana node menyetujui blok yang baru ditambang.
+   - Jika blok valid, node akan menambahkan blok tersebut ke blockchain mereka. Ini adalah bentuk "voting" di mana node menyetujui blok yang baru ditambang. Jadi proses voting berlangsung secara implisit.
 
 3. Kesepakatan Mayoritas:
    - Konsensus dicapai ketika mayoritas node di jaringan telah menambahkan blok yang sama ke blockchain mereka. Ini berarti mayoritas node telah "memvoting" blok tersebut sebagai valid.
@@ -243,7 +283,7 @@ func main() {
 }
 ```
 
-terakhir, di file app/blockchain/blockchain.go, update fungsi AddBlock() agar hanya menambhakan block baru jika belum ada di blockcahin. Jika sudah ada, maka tidak perlu melakukan apa-apa.
+Terakhir, di file app/blockchain/blockchain.go, update fungsi AddBlock() agar hanya menambhakan block baru jika belum ada di blockcahin. Jika sudah ada, maka tidak perlu melakukan apa-apa.
 
 ```go
 func (bc *Blockchain) AddBlock(newBlock Block) bool {
@@ -257,84 +297,22 @@ func (bc *Blockchain) AddBlock(newBlock Block) bool {
 }
 ```
 
-Dengan perubahan fungsi AddBlock(), maka fungsi cfreate menjadi tidak ada yang menggunakan. Update app/blockchain/blockchain.go untuk menghapus createBlock().
+Dengan perubahan fungsi AddBlock(), maka fungsi createBlock menjadi tidak ada yang menggunakan. Update app/blockchain/blockchain.go untuk menghapus createBlock().
 
 Dengan pendekatan ini, Anda dapat melihat bagaimana proses konsensus bekerja dalam konteks PoW tanpa perlu voting eksplisit. Penambang yang pertama kali menemukan solusi yang valid memenangkan hak untuk menambahkan blok ke blockchain, dan seluruh jaringan setuju pada blok baru tersebut melalui aturan rantai terpanjang.
 
 Untuk mencoba menjalankan P2P, bisa lakukan seperti langkah sebelumnya.
 
-```
+```console
 go run main.go -port=3001
 ```
 
-```
+```console
 go run main.go -port=3002
 ```
 
 dan 
 
-```
+```console
 go run main.go -port=3000
 ```
-
-### 6.3 Proof of Stake (PoS) dan Alternatif Lainnya
-
-Proof of Stake (PoS) adalah mekanisme konsensus yang memilih validator untuk membuat blok baru berdasarkan jumlah cryptocurrency yang mereka miliki dan "stake" dalam jaringan. PoS lebih hemat energi dibandingkan PoW.
-
-Pseudo-Implementation:
-
-```go
-package blockchain
-
-import (
-	"math/rand"
-	"time"
-)
-
-type Validator struct {
-	Address string
-	Stake   int
-}
-
-type PoSNetwork struct {
-	Validators []Validator
-}
-
-func NewPoSNetwork() *PoSNetwork {
-	return &PoSNetwork{Validators: []Validator{}}
-}
-
-func (pos *PoSNetwork) AddValidator(address string, stake int) {
-	validator := Validator{Address: address, Stake: stake}
-	pos.Validators = append(pos.Validators, validator)
-}
-
-func (pos *PoSNetwork) SelectValidator() Validator {
-	totalStake := 0
-	for _, v := range pos.Validators {
-		totalStake += v.Stake
-	}
-	rand.Seed(time.Now().Unix())
-	r := rand.Intn(totalStake)
-	runningTotal := 0
-	for _, v := range pos.Validators {
-		runningTotal += v.Stake
-		if runningTotal > r {
-			return v
-		}
-	}
-	return pos.Validators[0]
-}
-```
-
-## 6.4 Memilih Protokol Konsensus yang Tepat
-
-Memilih protokol konsensus yang tepat tergantung pada berbagai faktor, termasuk kebutuhan keamanan, efisiensi energi, dan skala jaringan. PoW menawarkan keamanan tinggi tetapi tidak efisien secara energi, sementara PoS lebih efisien tetapi memerlukan mekanisme untuk mencegah centralisasi kekuasaan.
-
-Kesimpulan:
-
-- Proof of Work (PoW): Baik untuk keamanan tinggi tetapi membutuhkan banyak energi.
-- Proof of Stake (PoS): Lebih efisien energi, tetapi perlu pengaturan untuk memastikan desentralisasi.
-- Alternatif lainnya: Seperti Delegated Proof of Stake (DPoS), Practical Byzantine Fault Tolerance (PBFT), dan lainnya yang menawarkan berbagai keseimbangan antara keamanan, efisiensi, dan desentralisasi.
-
-Dengan memahami dan mengimplementasikan mekanisme konsensus ini, kita bisa memilih solusi yang paling sesuai dengan kebutuhan spesifik dari jaringan blockchain yang kita bangun.

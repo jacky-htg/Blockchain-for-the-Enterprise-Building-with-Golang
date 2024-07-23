@@ -84,6 +84,8 @@ func createBlock(index int, data string, prevHash []byte) Block {
 }
 ```
 
+Kode di atas jika dijalankan akan error, karena saat ini, Block belum mempunyai metho calculateHash().
+
 ## 4.2 Menghitung Hash dan Validasi Blok
 
 Fungsi calculateHash digunakan untuk menghasilkan hash dari sebuah blok berdasarkan Timestamp, Data, dan PrevHash. Update file app/blockchain/block.go untuk menambahkan fungsi calculateHash() :

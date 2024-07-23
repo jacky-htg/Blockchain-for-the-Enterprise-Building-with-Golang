@@ -10,7 +10,7 @@ Jaringan Peer-to-Peer (P2P) adalah jaringan di mana setiap node berfungsi sebaga
 
 Berikut adalah implementasi dasar untuk jaringan P2P menggunakan Golang. Struktur folder kita akan seperti ini:
 
-```shell
+```console
 app
 -- blockchain
 ---- data.go
@@ -183,19 +183,19 @@ Jika diperhatikan, kode di atas menambahkan peer secara manual, yaitu port 3000,
 Untuk menjalankan aplikasi ini, Anda perlu menjalankan beberapa instance dari program pada port yang berbeda. Berikut adalah langkah-langkahnya:
 
 Buka terminal dan jalankan perintah untuk memulai node pertama pada port 3001:
-```sh
+```console
 go run main.go -port=3001
 ```
 
 Buka terminal kedua dan jalankan perintah untuk memulai node kedua pada port 3002:
 
-```sh
+```console
 go run main.go -port=3002
 ```
 
 Buka terminal ketiga dan jalankan perintah untuk memulai node ketiga pada port 3000:
 
-```sh
+```console
 go run main.go -port=3000
 ```
 

@@ -1,4 +1,4 @@
-# Bab 2 : Dasar-dasar Blockchain.md
+# Bab 2 : Dasar-dasar Blockchain
 ## 2.1 Blok dan Rantai Blok
 ### Blok dalam Blockchain
 

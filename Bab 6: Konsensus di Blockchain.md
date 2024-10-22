@@ -308,9 +308,87 @@ Saat ini, aplikasi blockchain yang dibangun belum mengimplementasikan konsep "At
 Kita akan melakukannya dengan memodifikasi file app/peer/peer.go 
 
 1. BroadcastBlock diganti menjadi BroadcastBlockchain
+   
+```go
+func (p2p *P2PNetwork) BroadcastBlockchain() {
+	// Mengirim blockchain ke semua peer
+	for _, peer := range p2p.peers {
+		conn, err := net.Dial("tcp", peer.address)
+		if err != nil {
+			fmt.Println("Error connecting to peer:", err)
+			continue
+		}
+		defer conn.Close()
+
+		encoder := json.NewEncoder(conn)
+		if err := encoder.Encode(p2p.Blockchain); err != nil {
+			fmt.Println("Error encoding blockchain:", err)
+		}
+	}
+}
+```
+
 2. Fungsi handleConnection() ketika menerima blockchain yang dibroadcast, akan melakukan verifikasi blockchain, jika incoming blockchain lebih panjang dari local blockchain, maka update local blockchain dengan incomeing blockchain.
-3. Untuk itu perlu dibuat fungsi VerifyAndUpdateBlockchain(), yang logic dasarnya diambil dari fungsi Blockchain.IsValid() dan ditambahakn logic untuk mengecek rantai terpanjang antara incoming dan local blockchain. Karena logic validasi blockchain dipindah ke sini, maka methode Blockchain.IsValid() dihapus.
-4. Karena validasi dipanggil di package peer, maka fungsi Block.calculateHash() perlu diexport diubah menjadi Block.CalculateHash() 
+
+```go
+func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	decoder := json.NewDecoder(conn)
+	var incomingBlockchain blockchain.Blockchain
+	if err := decoder.Decode(&incomingBlockchain); err != nil {
+		fmt.Println("Error decoding blockchain:", err)
+		return
+	}
+
+	// Verifikasi dan update blockchain
+	if p2p.VerifyAndUpdateBlockchain(&incomingBlockchain) {
+		fmt.Println("Updated local blockchain with incoming blockchain.")
+	} else {
+		fmt.Println("Received invalid or shorter blockchain.")
+	}
+}
+```
+
+3. Untuk itu perlu dibuat fungsi VerifyAndUpdateBlockchain(), yang logic dasarnya memanggil fungsi Blockchain.IsValid() dan ditambahakn logic untuk mengecek rantai terpanjang antara incoming dan local blockchain.
+
+```go
+func (p2p *P2PNetwork) VerifyAndUpdateBlockchain(incoming *blockchain.Blockchain) bool {
+	if !incoming.IsValid() {
+		return false
+	}
+
+	if len(incoming.Blocks) > len(p2p.Blockchain.Blocks) {
+		p2p.Blockchain = incoming
+		p2p.BroadcastBlockchain() 
+		return true
+	}
+	return false
+}
+```
+
+4. Karena hash sekarang dihandle oleh fungsi pow.Run() maka ubah fungsi IsValid pada blockchain menjadi :
+
+```go
+func (bc *Blockchain) IsValid() bool {
+	for i := 1; i < len(bc.Blocks); i++ {
+		currentBlock := bc.Blocks[i]
+		prevBlock := bc.Blocks[i-1]
+
+		if !bytes.Equal(currentBlock.PrevHash, prevBlock.Hash) {
+			return false
+		}
+
+		pow := NewProofOfWork(&currentBlock)
+		if !pow.Validate() {
+			return false 
+		}
+	}
+	return true
+}
+``` 
+
+5. Ubah kode di file main.go, dimana sebelumnya ada memanggil fungsi `p2p.BroadcastBlock(genesisBlock)` diubah menjadi `p2p.BroadcastBlockchain()` dan yang sebelumnya `p2p.BroadcastBlockc(newBlock)` doiubah menjadi `p2p.BroadcastBlockchain()`
 
 
 Untuk mencoba menjalankan P2P, bisa lakukan seperti langkah sebelumnya.

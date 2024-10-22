@@ -328,7 +328,7 @@ func (p2p *P2PNetwork) BroadcastBlockchain() {
 }
 ```
 
-2. Fungsi handleConnection() ketika menerima blockchain yang dibroadcast, akan melakukan verifikasi blockchain, jika incoming blockchain lebih panjang dari local blockchain, maka update local blockchain dengan incomeing blockchain.
+2. Fungsi handleConnection() ketika menerima blockchain yang dibroadcast, akan melakukan verifikasi blockchain, jika incoming blockchain lebih panjang dari local blockchain, maka update local blockchain dengan incoming blockchain.
 
 ```go
 func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
@@ -390,6 +390,7 @@ func (bc *Blockchain) IsValid() bool {
 
 5. Ubah kode di file main.go, dimana sebelumnya ada memanggil fungsi `p2p.BroadcastBlock(genesisBlock)` diubah menjadi `p2p.BroadcastBlockchain()` dan yang sebelumnya `p2p.BroadcastBlockc(newBlock)` doiubah menjadi `p2p.BroadcastBlockchain()`
 
+6. Hapus kode-kode yang sudah tidak diperlukan, yaitu fungsi createBlock pada file blockchain.go dan fungsi calculateHash pada file block.go
 
 Untuk mencoba menjalankan P2P, bisa lakukan seperti langkah sebelumnya.
 

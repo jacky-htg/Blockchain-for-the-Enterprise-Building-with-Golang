@@ -14,17 +14,17 @@ Karakteristik Utama Smart Contract:
 ## 7.2. Fungsi Smart Contract dalam Sistem Pemilu
 Smart contract memiliki beberapa fungsi penting dalam konteks pemilu, antara lain:
 
-### 7.2.1. Pengaturan Aturan Pemungutan Suara
+1. Pengaturan Aturan Pemungutan Suara
 Smart contract dapat mendefinisikan aturan pemungutan suara secara jelas dan transparan. Misalnya, smart contract dapat menentukan kriteria pemilih yang berhak memberikan suara, kandidat yang dapat dipilih, dan batasan waktu untuk memberikan suara.
 
-### 7.2.2. Validasi Pemilih
+2. Validasi Pemilih
 Dengan menggunakan smart contract, sistem dapat memverifikasi apakah seorang pemilih telah memenuhi syarat untuk memberikan suara. Hal ini membantu mencegah penipuan pemilih dan memastikan bahwa hanya pemilih yang valid yang dapat berpartisipasi.
 
-### 7.2.3. Pencatatan Suara
+3. Pencatatan Suara
 Setiap suara yang diberikan akan dicatat dalam blockchain melalui smart contract. Ini memastikan bahwa data pemungutan suara tidak dapat diubah atau dimanipulasi, sehingga meningkatkan integritas hasil pemilu.
 
-### 7.2.4. Penghitungan Suara
+4. Penghitungan Suara
 Smart contract dapat secara otomatis menghitung jumlah suara yang diterima oleh setiap kandidat. Ini mengurangi kebutuhan untuk menghitung suara secara manual, yang dapat rentan terhadap kesalahan manusia atau manipulasi.
 
-### 7.2.5. Transparansi Hasil Pemilu
+5. Transparansi Hasil Pemilu
 Dengan semua data pemungutan suara yang tercatat dalam blockchain, hasil pemilu dapat diakses dan diverifikasi oleh semua pihak yang berkepentingan, termasuk pemilih, kandidat, dan lembaga pengawas pemilu. Ini menciptakan tingkat transparansi yang tinggi dan kepercayaan dalam proses pemilu.

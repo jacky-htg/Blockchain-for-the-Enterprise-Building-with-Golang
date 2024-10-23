@@ -41,18 +41,18 @@
 - Arsitektur dan Desain Smart Contract untuk Pemilu
 - Implementasi Smart Contract dalam Sistem Pemilu
 
-**Bab 8: Publikasi dan Subskripsi**
-- Apa itu Pub/Sub?
-- Implementasi Pub/Sub di Jaringan Blockchain
-- Menggunakan NATS atau Kafka untuk Pub/Sub
-- Integrasi Pub/Sub dengan Jaringan P2P
-
-**Bab 9: Bootstrap Peer dan Pengelolaan Peer**
+**Bab 8: Bootstrap Peer dan Pengelolaan Peer**
 - Peran Bootstrap Peer
 - Implementasi Bootstrap Peer di Golang
 - Peer Discovery
 - Health Check dan Manajemen Peer
 - Menangani Peer yang Putus/Mati
+
+**Bab 9: Publikasi dan Subskripsi**
+- Apa itu Pub/Sub?
+- Implementasi Pub/Sub di Jaringan Blockchain
+- Menggunakan NATS atau Kafka untuk Pub/Sub
+- Integrasi Pub/Sub dengan Jaringan P2P
 
 **Bab 10: Keamanan dan Skalabilitas**
 - Keamanan di Jaringan Blockchain

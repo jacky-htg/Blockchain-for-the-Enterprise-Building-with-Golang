@@ -35,40 +35,42 @@
 - Memilih Protokol Konsensus yang Tepat
 - Proof of Work (PoW) dan Implementasinya di Golang
 
-**Bab 7: Publikasi dan Subskripsi**
+[**Bab 7: Smart Contract dan Implementasi dalam Sistem Pemilu**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%207%20%3A%20Smart%20Contract%20dan%20Implementasi%20dalam%20Sistem%20Pemilu.md)
+- Definisi Smart Contract
+- Fungsi Smart Contract dalam Sistem Pemilu
+- Arsitektur dan Desain Smart Contract untuk Pemilu
+- Implementasi Smart Contract dalam Sistem Pemilu
+
+**Bab 8: Publikasi dan Subskripsi**
 - Apa itu Pub/Sub?
 - Implementasi Pub/Sub di Jaringan Blockchain
 - Menggunakan NATS atau Kafka untuk Pub/Sub
 - Integrasi Pub/Sub dengan Jaringan P2P
 
-**Bab 8: Bootstrap Peer dan Pengelolaan Peer**
+**Bab 9: Bootstrap Peer dan Pengelolaan Peer**
 - Peran Bootstrap Peer
 - Implementasi Bootstrap Peer di Golang
+- Peer Discovery
 - Health Check dan Manajemen Peer
 - Menangani Peer yang Putus/Mati
 
-**Bab 9: Keamanan dan Skalabilitas**
+**Bab 10: Keamanan dan Skalabilitas**
 - Keamanan di Jaringan Blockchain
 - Mekanisme Kriptografi dan Keamanan Transaksi
 - Skalabilitas Jaringan Blockchain
 - Mengatasi Masalah Skalabilitas
 
-**Bab 10: Aplikasi Enterprise dengan Blockchain**
+**Bab 11: Aplikasi Enterprise dengan Blockchain**
 - Memenuhi Standar Enterprise
 - Desain Arsitektur untuk Aplikasi Enterprise
 - Studi Kasus: Implementasi Aplikasi Blockchain di Sektor Industri
 - Best Practices dalam Pengembangan Aplikasi Blockchain Enterprise
 
-**Bab 11: Testing dan Deployment**
+**Bab 12: Testing dan Deployment**
 - Metode Testing untuk Aplikasi Blockchain
 - Continuous Integration dan Continuous Deployment (CI/CD)
 - Deployment ke Lingkungan Produksi
 - Monitoring dan Maintenance
-
-**Bab 12: Studi Kasus dan Contoh Aplikasi**
-- Contoh Implementasi Blockchain di Golang
-- Studi Kasus dari Proyek Nyata
-- Tantangan dan Solusi dalam Implementasi
 
 **Bab 13: Tren Masa Depan Blockchain**
 - Tren Teknologi Blockchain Terbaru

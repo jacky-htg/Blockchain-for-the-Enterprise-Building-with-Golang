@@ -146,7 +146,7 @@ Kemudian buat file main.go yang berisi:
 package main
 
 import (
-	"bootstrap-peer/bootstrap" // Ganti dengan path modul Anda
+	"bootstrap-peer/bootstrap"
 	"fmt"
 )
 
@@ -353,8 +353,8 @@ type Peer struct {
 type P2PNetwork struct {
 	peers      []Peer
 	Blockchain *blockchain.Blockchain
-	bootstrap  string // Alamat bootstrap server
-	localAddr  string // Alamat lokal peer
+	bootstrap  string 
+	localAddr  string 
 }
 
 func NewP2PNetwork(bootstrap, localAddr string) *P2PNetwork {

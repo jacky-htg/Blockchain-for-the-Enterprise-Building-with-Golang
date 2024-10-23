@@ -75,6 +75,7 @@ Implementasi smart contract dalam sistem pemilu bertujuan untuk meningkatkan tra
 
 ### 7.4.1. Fitur yang Diimplementasikan
 **Pendaftaran Pemilih**
+
 Fitur ini memungkinkan pemilih yang memenuhi syarat untuk mendaftar dalam sistem. Data pemilih disimpan di dalam smart contract, memastikan bahwa hanya pemilih yang terdaftar yang dapat memberikan suara. Kode di bawah ini menunjukkan bagaimana pendaftaran pemilih dilakukan:
 
 ```go
@@ -94,6 +95,7 @@ func NewElection(candidates []string) *Election {
 ```
 
 **Pengaturan Kandidat**
+
 Dalam sistem ini, kandidat yang berpartisipasi dalam pemilu dapat ditambahkan ke dalam daftar. Berikut adalah cara kita mengatur kandidat dalam smart contract:
 
 ```go
@@ -107,6 +109,7 @@ func (e *Election) AddCandidate(candidate string) error {
 ```
 
 **Pemungutan Suara**
+
 Setelah pemilih terdaftar, mereka dapat memberikan suara mereka kepada kandidat pilihan mereka. Berikut adalah kode yang menangani pemungutan suara:
 
 ```go
@@ -129,6 +132,7 @@ func (e *Election) Vote(voterID, candidate string) error {
 ```
 
 **Penghitungan Suara**
+
 Setelah periode pemungutan suara berakhir, smart contract akan secara otomatis menghitung suara yang diterima oleh setiap kandidat. Kode berikut menunjukkan bagaimana penghitungan dilakukan:
 
 ```go
@@ -138,6 +142,7 @@ func (e *Election) GetResults() map[string]int {
 ```
 
 **Transparansi Hasil**
+
 Hasil pemilu dapat diakses oleh semua pihak yang berkepentingan. Kode untuk mendapatkan hasil pemilu adalah sebagai berikut:
 
 ```go
@@ -438,3 +443,10 @@ dan
 go run main.go -port=3002
 ```
 
+Fitur-fitur yang dikembangkan masih sangat sederhana, beberapa fitur yang bisa dikembangkan termasuk:
+
+- Pencatatan Riwayat Suara.
+- Integrasi dengan Sistem Lain.
+- Fitur Keamanan Tambahan, seperti enkripsi data suara.
+
+Implementasi smart contract dalam sistem pemilu merupakan langkah signifikan menuju pemilihan yang lebih transparan dan adil. Dengan fokus pada fitur-fitur inti yang telah dibahas, diharapkan dapat menciptakan fondasi yang kuat untuk pengembangan lebih lanjut. Meskipun banyak fitur yang potensial untuk diintegrasikan, pendekatan bertahap ini akan memastikan setiap komponen berfungsi dengan baik sebelum memperkenalkan fitur tambahan di masa mendatang.

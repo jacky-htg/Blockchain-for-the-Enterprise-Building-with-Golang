@@ -41,7 +41,7 @@
 - Arsitektur dan Desain Smart Contract untuk Pemilu
 - Implementasi Smart Contract dalam Sistem Pemilu
 
-**Bab 8: Bootstrap Peer dan Pengelolaan Peer**
+[**Bab 8: Bootstrap Peer dan Pengelolaan Peer**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%207%20%3A%20Smart%20Contract%20dan%20Implementasi%20dalam%20Sistem%20Pemilu.md#:~:text=Sistem%20Pemilu.md-,Bab,-8%3A%20Bootstrap%20Peer)
 - Peran Bootstrap Peer
 - Implementasi Bootstrap Peer di Golang
 - Peer Discovery

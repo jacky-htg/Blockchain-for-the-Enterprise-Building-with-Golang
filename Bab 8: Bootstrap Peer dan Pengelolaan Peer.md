@@ -21,3 +21,147 @@ Jika bootstrap peer gagal atau tidak dapat diakses, node baru yang ingin bergabu
 **Alternatif: Daftar Statis vs. Dinamis Bootstrap Peer**
 
 Terdapat dua pendekatan dalam pengelolaan bootstrap peer: daftar statis dan dinamis. Daftar statis terdiri dari alamat peer yang telah ditentukan sebelumnya, yang dihardcode dalam kode. Pendekatan ini sederhana tetapi kurang fleksibel, karena tidak dapat menyesuaikan dengan perubahan dalam jaringan. Di sisi lain, daftar dinamis memungkinkan node untuk memperbarui daftar bootstrap peer secara real-time berdasarkan informasi yang diterima dari peer yang sudah terhubung. Pendekatan ini memberikan fleksibilitas lebih besar, namun memerlukan implementasi yang lebih kompleks untuk mengelola dan memperbarui daftar peer. Memilih antara kedua pendekatan ini tergantung pada kebutuhan spesifik jaringan dan tujuan pengelolaan peer.
+
+## 8.2 Implementasi Bootstrap Peer di Golang
+Kita akan membuatv server bootstrap peer sederhana yang menyimpan daftar peer secara permanen ke dalam file dalam format JSON. Pertama, buat project/folder dengan `bootstrap-peer`, dengan struktur folder seperti berikut:
+
+```console
+├── bootstrap
+│   └── bootstrap.go
+├── main.go
+└── peers.json
+```
+Jalankan `go mod init bootstrap-peer` untuk membuat project/module. Kemudian buat file bootstrap/bootstrap.go yang berisi:
+
+```go
+package bootstrap
+
+import (
+	"encoding/json"
+	"fmt"
+	"net"
+	"os"
+)
+
+// Peer struct
+type Peer struct {
+	Address string `json:"address"`
+}
+
+// BootstrapServer struct
+type BootstrapServer struct {
+	Peers []Peer
+	File  string
+}
+
+// NewBootstrapServer initializes the BootstrapServer
+func NewBootstrapServer(file string) *BootstrapServer {
+	return &BootstrapServer{
+		File: file,
+	}
+}
+
+// LoadPeers loads peers from a JSON file
+func (bs *BootstrapServer) LoadPeers() error {
+	data, err := os.ReadFile(bs.File)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(data, &bs.Peers)
+}
+
+// SavePeers saves the current peers to a JSON file
+func (bs *BootstrapServer) SavePeers() error {
+	data, err := json.Marshal(bs.Peers)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(bs.File, data, 0644)
+}
+
+// Listen starts the bootstrap server
+func (bs *BootstrapServer) Listen(port string) {
+	ln, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		fmt.Println("Error setting up listener:", err)
+		return
+	}
+	defer ln.Close()
+
+	fmt.Printf("Bootstrap server listening on port %s\n", port)
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			continue
+		}
+		go bs.handleConnection(conn)
+	}
+}
+
+// Handle incoming connections from new peers
+func (bs *BootstrapServer) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	var peer Peer
+	decoder := json.NewDecoder(conn)
+	if err := decoder.Decode(&peer); err != nil {
+		fmt.Println("Error decoding peer:", err)
+		return
+	}
+
+	// Check if the peer is already in the list
+	for _, p := range bs.Peers {
+		if p.Address == peer.Address {
+			fmt.Println("Peer already exists:", peer.Address)
+			return
+		}
+	}
+
+	// Add new peer to the list
+	bs.Peers = append(bs.Peers, peer)
+	fmt.Println("New peer added:", peer.Address)
+
+	// Save the updated list of peers
+	if err := bs.SavePeers(); err != nil {
+		fmt.Println("Error saving peers:", err)
+	}
+}
+```
+
+Kemudian buat file main.go yang berisi:
+```go
+package main
+
+import (
+	"bootstrap-peer/bootstrap" // Ganti dengan path modul Anda
+	"fmt"
+)
+
+func main() {
+	const port = "4000"
+	const peersFile = "peers.json"
+
+	// Initialize the Bootstrap server
+	bs := bootstrap.NewBootstrapServer(peersFile)
+
+	// Load existing peers from the file
+	if err := bs.LoadPeers(); err != nil {
+		fmt.Println("Error loading peers:", err)
+		return
+	}
+
+	// Start the Bootstrap server
+	bs.Listen(port)
+}
+```
+
+Sementara file peers.json berisi array kosong atau `[]`.
+
+Untuk menjalankan server, gunakan perintah `go run main.go`. Nah saat ini kita sudah berhasil membuat server bootstrap peer sederhana.
+
+
+

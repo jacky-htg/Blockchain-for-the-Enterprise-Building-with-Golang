@@ -350,6 +350,36 @@ func (p2p *P2PNetwork) HandleVote(voterID, candidateID string) {
 }
 ```
 
+Untuk membuat genesis block, kita akan menambahkan fungsi SetGenesisBlock di file `app/blockchain/blockchain.go`
+```go
+func (bc *Blockchain) SetGenesisBlock() bool {
+	if len(bc.Blocks) == 0 {
+		// Membuat dan membroadcast blok genesis.
+		genesisBlock := Block{
+			Index:     0,
+			Timestamp: time.Now().Unix(),
+			Data:      VoteData{VoterID: "system", CandidateID: "Genesis Block"},
+		}
+		pow := NewProofOfWork(&genesisBlock)
+		nonce, hash := pow.Run()
+		genesisBlock.Hash = hash
+		genesisBlock.Nonce = nonce
+
+		if pow.Validate() {
+			if bc.AddBlock(genesisBlock) {
+				fmt.Println("Added genesis block:", genesisBlock.Data.VoterID)
+				return true
+			}
+		} else {
+			fmt.Println("Failed to validate genesis block")
+		}
+	}
+
+	return false
+}
+```
+
+
 Terakhir, kita perlu mengimplmentasikan di file main.go
 ```go
 package main
@@ -395,24 +425,8 @@ func main() {
 	go p2p.ListenForBlocks(*port)
 
 	if *port == "3000" {
-		// Membuat dan membroadcast blok genesis.
-		genesisBlock := blockchain.Block{
-			Index:     0,
-			Timestamp: time.Now().Unix(),
-			Data:      blockchain.VoteData{VoterID: "system", CandidateID: "Genesis Block"},
-		}
-		pow := blockchain.NewProofOfWork(&genesisBlock)
-		nonce, hash := pow.Run()
-		genesisBlock.Hash = hash
-		genesisBlock.Nonce = nonce
-
-		if pow.Validate() {
-			if p2p.Blockchain.AddBlock(genesisBlock) {
-				p2p.BroadcastBlockchain()
-				fmt.Println("Added genesis block:", genesisBlock)
-			}
-		} else {
-			fmt.Println("Failed to validate genesis block")
+		if !p2p.Blockchain.SetGenesisBlock() {
+			p2p.BroadcastBlockchain()
 		}
 	}
 

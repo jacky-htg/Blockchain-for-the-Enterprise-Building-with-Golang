@@ -166,7 +166,7 @@ Berikut ini adalah tambahan penjelasan tentang bagaimana konsensus di jaringan P
 Ini dikenal sebagai aturan "rantai terpanjang", di mana rantai terpanjang akan menjadi blockchain yang diadopsi oleh seluruh jaringan.
 
 ### Memvalidasi PoW pada Fungsi handleConnection
-Untuk memverifikasi bahwa blok yang diterima valid menurut PoW, kita perlu menambahkan validasi PoW pada fungsi handleConnection di file app/peer/peer.go
+Untuk memverifikasi bahwa blok yang diterima valid menurut PoW, kita perlu menambahkan validasi PoW pada fungsi handleConnection di file app/peer/handler.go
 
 ```go
 func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
@@ -305,7 +305,7 @@ Dengan pendekatan ini, Anda dapat melihat bagaimana proses konsensus bekerja dal
 
 Saat ini, aplikasi blockchain yang dibangun belum mengimplementasikan konsep "Aturan Rantai Terpanjang". Ini dilakukan dengan membandingkan blockchain yang dibroadcast dengan blockchain di local. Jika blockchain yang dibroadcast lebih panjang, maka kita akan mengganti blockchain local dengan blockchain yang diterima.
 
-Kita akan melakukannya dengan memodifikasi file app/peer/peer.go 
+Kita akan melakukannya dengan memodifikasi file app/peer/broadcast.go 
 
 1. BroadcastBlock diganti menjadi BroadcastBlockchain
    

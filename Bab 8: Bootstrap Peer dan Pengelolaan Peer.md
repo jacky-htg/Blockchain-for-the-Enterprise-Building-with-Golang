@@ -26,151 +26,400 @@ Terdapat dua pendekatan dalam pengelolaan bootstrap peer: daftar statis dan dina
 Kita akan membuatv server bootstrap peer sederhana yang menyimpan daftar peer secara permanen ke dalam file dalam format JSON. Pertama, buat project/folder dengan `bootstrap-peer`, dengan struktur folder seperti berikut:
 
 ```console
-├── bootstrap
-│   └── bootstrap.go
-├── main.go
-└── peers.json
+.
+├── cmd
+│   └── main.go
+├── data
+│   └── peers.json
+├── internal
+│   └── bootstrap
+│       ├── handler.go
+│       ├── peer.go
+│       └── server.go
+├── pkg
+│   └── models.go
+└── go.mod
 ```
-Jalankan `go mod init bootstrap-peer` untuk membuat project/module. Kemudian buat file bootstrap/bootstrap.go yang berisi:
+Jalankan `go mod init bootstrap-peer` untuk membuat project/module. Kemudian buat file `internal/bootstrap/peer.go` yang berguna untuk mengelola semua transaksi terkait peer:
 
+```go
+package bootstrap
+
+import (
+	"os"
+	"sync"
+
+	"github.com/bytedance/sonic"
+)
+
+// PeerManager mengelola daftar peers dengan thread-safe.
+type PeerManager struct {
+	peers []Peer
+	mu    sync.Mutex
+}
+
+type Peer struct {
+	Address string `json:"address"`
+}
+
+// NewPeerManager membuat instance baru dari PeerManager.
+func NewPeerManager() *PeerManager {
+	return &PeerManager{
+		peers: make([]Peer, 0),
+	}
+}
+
+// RegisterPeer menambahkan peer baru ke dalam daftar.
+func (pm *PeerManager) RegisterPeer(peerAddress string) (bool, string) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	peer := Peer{Address: peerAddress}
+
+	for _, p := range pm.peers {
+		if p.Address == peerAddress {
+			return false, "Peer already registered"
+		}
+	}
+
+	pm.peers = append(pm.peers, peer)
+	return true, "Peer registered successfully"
+}
+
+// GetAllPeers mengembalikan daftar semua peers.
+func (pm *PeerManager) GetAllPeers() []Peer {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	return pm.peers
+}
+
+// RemovePeer menghapus peer dari daftar.
+func (pm *PeerManager) RemovePeer(peerAddress string) (bool, string) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	for i, p := range pm.peers {
+		if p.Address == peerAddress {
+			pm.peers = append(pm.peers[:i], pm.peers[i+1:]...)
+			return true, "Peer removed successfully"
+		}
+	}
+
+	return false, "Peer not found"
+}
+
+func (pm *PeerManager) loadPeers(jsonPath string) error {
+	file, err := os.ReadFile(jsonPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	return sonic.Unmarshal(file, &pm.peers)
+}
+
+func (pm *PeerManager) savePeers(jsonPath string) error {
+	file, err := sonic.Marshal(pm.peers)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(jsonPath, file, 0644)
+}
+
+```
+
+Kemudian buat file `pkg/models.go` untuk menyimpan struct dari payload request:
+```go
+package pkg
+
+// Request adalah model untuk request dari client.
+type Request struct {
+	Type    string `json:"type"`
+	Payload string `json:"payload"`
+}
+```
+
+Kemudian buat file `internal/bootstrap/handler.go` yang beguna sebagai handler dari semua service yang dimiliki oleh bootstrap server :
+```go
+package bootstrap
+
+import (
+	"bootstrap-server/pkg"
+	"bufio"
+	"fmt"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/bytedance/sonic"
+)
+
+// handleConnection menangani koneksi dan menentukan jenis request.
+func (s *Server) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	reader := bufio.NewReader(conn)
+
+	// Baca request dari client
+	data, err := reader.ReadBytes('\n')
+	if err != nil {
+		fmt.Println("Error reading from connection:", err)
+		return
+	}
+
+	var req pkg.Request
+	if err := sonic.Unmarshal(data, &req); err != nil {
+		fmt.Println("Invalid request format:", err)
+		return
+	}
+
+	// Handle sesuai tipe request
+	switch req.Type {
+	case "REGISTER":
+		s.registerPeer(req.Payload, conn)
+	case "GET_PEERS":
+		s.getAllPeers(conn)
+	case "REMOVE":
+		s.removePeer(req.Payload, conn)
+	default:
+		fmt.Println("Invalid request type")
+	}
+}
+
+func (s *Server) handleShutdown() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	<-c
+	fmt.Println("Shutdown initiated, saving peers...")
+
+	if err := s.pm.savePeers(s.jsonPath); err != nil {
+		fmt.Println("Gagal menyimpan peers:", err)
+	} else {
+		fmt.Println("Peers saved successfully.")
+	}
+	os.Exit(0)
+}
+
+// registerPeer menambahkan peer baru ke daftar.
+func (s *Server) registerPeer(peer string, conn net.Conn) {
+	success, msg := s.pm.RegisterPeer(peer)
+	fmt.Fprintln(conn, msg)
+
+	if !success {
+		fmt.Println("Failed to register peer:", peer)
+	}
+}
+
+func (s *Server) getAllPeers(conn net.Conn) {
+	peers := s.pm.GetAllPeers()
+
+	data, err := sonic.Marshal(peers)
+	if err != nil {
+		fmt.Println("Error encoding peers:", err)
+		return
+	}
+	conn.Write(append(data, '\n'))
+}
+
+func (s *Server) removePeer(peer string, conn net.Conn) {
+	success, msg := s.pm.RemovePeer(peer)
+	fmt.Fprintln(conn, msg)
+
+	if !success {
+		fmt.Println("Failed to remove peer:", peer)
+	}
+}
+```
+
+Kemudian buat file `internal/bootstrap/server.go` sebagai server bootsrap, mengelola strat server dan shutdown server:
 ```go
 package bootstrap
 
 import (
 	"fmt"
 	"net"
-	"os"
-
-	"github.com/bytedance/sonic"
 )
 
-// Peer struct
-type Peer struct {
-	Address string `json:"address"`
+// Server menyimpan data peer dan menangani koneksi.
+type Server struct {
+	port     string
+	peers    map[string]bool
+	pm       *PeerManager
+	jsonPath string
 }
 
-// BootstrapServer struct
-type BootstrapServer struct {
-	Peers []Peer
-	File  string
-}
-
-// NewBootstrapServer initializes the BootstrapServer
-func NewBootstrapServer(file string) *BootstrapServer {
-	return &BootstrapServer{
-		File: file,
+// NewServer membuat instance baru server.
+func NewServer(port string, jsonPath string) *Server {
+	return &Server{
+		port:     port,
+		peers:    make(map[string]bool),
+		pm:       NewPeerManager(),
+		jsonPath: jsonPath,
 	}
 }
 
-// LoadPeers loads peers from a JSON file
-func (bs *BootstrapServer) LoadPeers() error {
-	data, err := os.ReadFile(bs.File)
-	if err != nil {
-		return err
+// ListenAndServe memulai server untuk menerima koneksi dari client.
+func (s *Server) ListenAndServe() error {
+	if err := s.pm.loadPeers(s.jsonPath); err != nil {
+		return fmt.Errorf("gagal membaca file peers: %v", err)
 	}
 
-	return sonic.Unmarshal(data, &bs.Peers)
-}
-
-// SavePeers saves the current peers to a JSON file
-func (bs *BootstrapServer) SavePeers() error {
-	data, err := sonic.Marshal(bs.Peers)
+	ln, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(bs.File, data, 0644)
-}
-
-// Listen starts the bootstrap server
-func (bs *BootstrapServer) Listen(port string) {
-	ln, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		fmt.Println("Error setting up listener:", err)
-		return
+		return fmt.Errorf("failed to listen on port %s: %v", s.port, err)
 	}
 	defer ln.Close()
 
-	fmt.Printf("Bootstrap server listening on port %s\n", port)
+	go s.handleShutdown()
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			fmt.Println("Error accepting connection:", err)
+			fmt.Println("Failed to accept connection:", err)
 			continue
 		}
-		go bs.handleConnection(conn)
-	}
-}
-
-// handleConnection menangani koneksi dari peer baru dan menambahkannya ke daftar peers.
-func (bs *BootstrapServer) handleConnection(conn net.Conn) {
-	defer conn.Close()
-
-	// Baca data dari koneksi
-	var peer Peer
-	buf := make([]byte, 1024) // Buffer untuk membaca data
-	n, err := conn.Read(buf)
-	if err != nil {
-		fmt.Println("Error reading from connection:", err)
-		return
-	}
-
-	// Deserialisasi data JSON menggunakan Sonic
-	if err := sonic.Unmarshal(buf[:n], &peer); err != nil {
-		fmt.Println("Error decoding peer:", err)
-		return
-	}
-
-	// Cek apakah peer sudah ada
-	for _, p := range bs.Peers {
-		if p.Address == peer.Address {
-			fmt.Println("Peer already exists:", peer.Address)
-			return
-		}
-	}
-
-	// Tambahkan peer baru ke daftar
-	bs.Peers = append(bs.Peers, peer)
-	fmt.Println("New peer added:", peer.Address)
-
-	// Simpan daftar peers yang diperbarui
-	if err := bs.SavePeers(); err != nil {
-		fmt.Println("Error saving peers:", err)
+		go s.handleConnection(conn)
 	}
 }
 ```
-
-Kemudian buat file main.go yang berisi:
+Kemudian buat file `cmd/main.go` yang berisi: 
 ```go
 package main
 
 import (
-	"bootstrap-peer/bootstrap"
-	"fmt"
+	"log"
+	"os"
+
+	"bootstrap-server/internal/bootstrap"
 )
 
 func main() {
-	const port = "4000"
-	const peersFile = "peers.json"
-
-	// Initialize the Bootstrap server
-	bs := bootstrap.NewBootstrapServer(peersFile)
-
-	// Load existing peers from the file
-	if err := bs.LoadPeers(); err != nil {
-		fmt.Println("Error loading peers:", err)
-		return
+	// Konfigurasi server (misalnya port diambil dari ENV atau default ke 4000)
+	port := os.Getenv("BOOTSTRAP_PORT")
+	if port == "" {
+		port = "4000"
 	}
 
-	// Start the Bootstrap server
-	bs.Listen(port)
+	server := bootstrap.NewServer(port, "data/peers.json")
+	log.Printf("Bootstrap server listening on port %s\n", port)
+
+	// Jalankan server
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
 }
 ```
 
-Sementara file peers.json berisi array kosong atau `[]`.
+Sementara file `data/peers.json` berisi array kosong atau `[]`.
 
-Untuk menjalankan server, gunakan perintah `go run main.go`. Nah saat ini kita sudah berhasil membuat server bootstrap peer sederhana.
+Untuk menjalankan server, gunakan perintah `go run cmd/main.go`. Nah saat ini kita sudah berhasil membuat server bootstrap peer sederhana.
+
+Untuk melakukan testing buatlah file golang semisal `client.go` yang berisi :
+```go
+package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"net"
+	"os"
+	"strings"
+	"time"
+)
+
+type Request struct {
+	Type    string `json:"type"`
+	Payload string `json:"payload"`
+}
+
+// Fungsi utama client untuk memanggil perintah registrasi, get peers, dan remove peer
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: go run main.go <command>")
+		fmt.Println("Commands: register | get_peers | remove")
+		return
+	}
+
+	command := os.Args[1]
+
+	if command != "get_peers" && len(os.Args) < 3 {
+		fmt.Println("Usage: go run main.go <command> <peer_address>")
+		fmt.Println("Commands: register | remove")
+		fmt.Println("Example: go run main.go register localhost:3000")
+		return
+	}
+
+	var peerAddress string
+	if len(os.Args) >= 3 {
+		peerAddress = os.Args[2]
+	}
+
+	// Membuka koneksi TCP ke bootstrap server
+	conn, err := net.DialTimeout("tcp", "localhost:4000", 10*time.Second)
+	if err != nil {
+		fmt.Println("Gagal terhubung ke server:", err)
+		return
+	}
+	defer conn.Close()
+
+	switch strings.ToLower(command) {
+	case "register":
+		sendRequest(conn, "REGISTER", peerAddress)
+	case "get_peers":
+		sendRequest(conn, "GET_PEERS", peerAddress)
+	case "remove":
+		sendRequest(conn, "REMOVE", peerAddress)
+	default:
+		fmt.Println("Perintah tidak dikenali:", command)
+	}
+}
+
+// Fungsi untuk mengirim request dan membaca response dari server
+func sendRequest(conn net.Conn, command, peerAddress string) {
+	reader := bufio.NewReader(conn)
+
+	req := Request{Type: command, Payload: peerAddress}
+	data, err := json.Marshal(req)
+	if err != nil {
+		fmt.Println("gagal membuat request JSON: ", err)
+		return
+	}
+	writer := bufio.NewWriter(conn)
+	data = append(data, '\n')
+	
+	_, err = writer.WriteString(string(data))
+	if err != nil {
+		fmt.Println("Gagal mengirim request:", err)
+		return
+	}
+	writer.Flush()
+
+	// Membaca response dari server
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Println("Gagal membaca response:", err)
+		return
+	}
+
+	fmt.Println("Response dari server:", strings.TrimSpace(response))
+}
+```
+
+Jalankan client `go run client.go register localhost:3000`, `go run client.go get_peers` dan `go run client.go remove localhost:3000` untuk menguji interaksi anatara client dengan server bootstrap.
+
+Jika diperhatikan, saat server bootstrap di-start, server akan membaca file json untuk melihat peer apa saja yang ada di data, kemudian menyimpannya di memory. Jika server bootstrap di shutdown, server akan memyimpan seluruh peer ke dalam file peer.json. Operasi ini berjalan dengan baik jika jumlah node masih sedikit. Jika jumalah node sudah sampai jutaan, maka proses load data json yang berformat text akan sangat membebani kinerja server. Dan proses penyimpanan seluruh peer di dalam memory akan sangat memebebani server. Praktek yang baik adalah dengan menyimpan data peer ke dalam database yang efisien. Saya menyarakan untuk menggunakan database BadgerDB yang mempunyai performa handal. Berikut salah satu keunggulan BadgerDB :
+
+1. Kinerja Tinggi: Key-Value Store berbasis LSM tree (seperti Redis) yang cepat untuk operasi tulis dan baca, sehingga cocok untuk aplikasi real-time seperti blockchain dan bootstrap server.
+2. Built for Go: Ditulis sepenuhnya dalam Go dan mudah diintegrasikan dengan aplikasi Go, tanpa dependensi eksternal.
+3. Skalabilitas dan Konsistensi: BadgerDB dirancang untuk menangani jutaan keys dengan konsumsi memori rendah, tanpa memuat semua data ke dalam memori.
+4. Durable & Persistent: Data disimpan di disk, tetapi performa tetap tinggi karena memanfaatkan buffer dan caching internal.
 
 ## 8.2 Integrasi Bootstrap Peer dengan Aplikasi Blockchain
 

@@ -23,7 +23,7 @@ Jika bootstrap peer gagal atau tidak dapat diakses, node baru yang ingin bergabu
 Terdapat dua pendekatan dalam pengelolaan bootstrap peer: daftar statis dan dinamis. Daftar statis terdiri dari alamat peer yang telah ditentukan sebelumnya, yang dihardcode dalam kode. Pendekatan ini sederhana tetapi kurang fleksibel, karena tidak dapat menyesuaikan dengan perubahan dalam jaringan. Di sisi lain, daftar dinamis memungkinkan node untuk memperbarui daftar bootstrap peer secara real-time berdasarkan informasi yang diterima dari peer yang sudah terhubung. Pendekatan ini memberikan fleksibilitas lebih besar, namun memerlukan implementasi yang lebih kompleks untuk mengelola dan memperbarui daftar peer. Memilih antara kedua pendekatan ini tergantung pada kebutuhan spesifik jaringan dan tujuan pengelolaan peer.
 
 ## 8.2 Implementasi Bootstrap Peer di Golang
-Kita akan membuatv server bootstrap peer sederhana yang menyimpan daftar peer secara permanen ke dalam file dalam format JSON. Pertama, buat project/folder dengan `bootstrap-peer`, dengan struktur folder seperti berikut:
+Kita akan membuat server bootstrap peer sederhana yang menyimpan daftar peer secara permanen ke dalam file dalam format JSON. Pertama, buat project/folder dengan `bootstrap-server`, dengan struktur folder seperti berikut:
 
 ```console
 .
@@ -40,7 +40,7 @@ Kita akan membuatv server bootstrap peer sederhana yang menyimpan daftar peer se
 │   └── models.go
 └── go.mod
 ```
-Jalankan `go mod init bootstrap-peer` untuk membuat project/module. Kemudian buat file `internal/bootstrap/peer.go` yang berguna untuk mengelola semua transaksi terkait peer:
+Jalankan `go mod init bootstrap-server` untuk membuat project/module. Kemudian buat file `internal/bootstrap/peer.go` yang berguna untuk mengelola semua transaksi terkait peer:
 
 ```go
 package bootstrap

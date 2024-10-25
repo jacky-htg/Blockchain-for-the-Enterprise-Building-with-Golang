@@ -410,14 +410,18 @@ func sendRequest(conn net.Conn, command, peerAddress string) {
 }
 ```
 
-Jalankan client `go run client.go register localhost:3000`, `go run client.go get_peers` dan `go run client.go remove localhost:3000` untuk menguji interaksi anatara client dengan server bootstrap.
+Jalankan client `go run client.go register localhost:3000`, `go run client.go get_peers` dan `go run client.go remove localhost:3000` untuk menguji interaksi antara client dengan server bootstrap.
 
-Jika diperhatikan, saat server bootstrap di-start, server akan membaca file json untuk melihat peer apa saja yang ada di data, kemudian menyimpannya di memory. Jika server bootstrap di-shutdown, server akan memyimpan seluruh peer ke dalam file peer.json. Operasi ini berjalan dengan baik jika jumlah node masih sedikit. Jika jumlah node sudah sampai jutaan, maka proses load data json yang berformat text akan membebani kinerja server. Dan proses penyimpanan seluruh peer di dalam memory juga akan sangat memebebani server. Praktek yang baik adalah dengan menyimpan data peer ke dalam database yang efisien. Kita bisa menggunakan database yang ringans eperti sqllite, redis, RocksDB, atau BoltDB. Saya pribadi menyarankan untuk menggunakan database BadgerDB yang mempunyai performa handal. Berikut beberapa keunggulan BadgerDB :
+Jika diperhatikan, saat server bootstrap di-start, server akan membaca file json untuk melihat peer apa saja yang ada di data, kemudian menyimpannya di memory. Jika server bootstrap di-shutdown, server akan memyimpan seluruh peer ke dalam file peer.json. Operasi ini berjalan dengan baik jika jumlah node masih sedikit. Jika jumlah node sudah sampai jutaan, maka proses load data json yang berformat text akan membebani kinerja server. Praktek yang baik adalah dengan menyimpan data peer ke dalam database yang efisien. Kita bisa menggunakan database yang ringans eperti sqllite, redis, RocksDB, atau BoltDB. Saya pribadi menyarankan untuk menggunakan database BadgerDB yang mempunyai performa handal. Berikut beberapa keunggulan BadgerDB :
 
 1. Kinerja Tinggi: Key-Value Store berbasis LSM tree (seperti Redis) yang cepat untuk operasi tulis dan baca, sehingga cocok untuk aplikasi real-time seperti blockchain dan bootstrap server.
 2. Built for Go: Ditulis sepenuhnya dalam Go dan mudah diintegrasikan dengan aplikasi Go, tanpa dependensi eksternal.
 3. Skalabilitas dan Konsistensi: BadgerDB dirancang untuk menangani jutaan keys dengan konsumsi memori rendah, tanpa memuat semua data ke dalam memori.
 4. Durable & Persistent: Data disimpan di disk, tetapi performa tetap tinggi karena memanfaatkan buffer dan caching internal.
+
+Format text (json) dalam serialisasi dan deserialisasi data juga cukup memakan memory, untuk itu, kadang dipelrukan format serialisasi/deserialisasi lain yang lebih efisien. Salah satu serialisasi/deserialisasi yang efisien adalah protokol buffer (protobuff).
+
+Saya telah membuat server bootstrap peer ini dalam versi badger dan protobuf. Jika tertarik, silahkan mengakses ke https://github.com/jacky-htg/bootstrap-peer-v2
 
 ## 8.2 Integrasi Bootstrap Peer dengan Aplikasi Blockchain
 

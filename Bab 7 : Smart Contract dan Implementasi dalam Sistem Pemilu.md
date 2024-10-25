@@ -309,20 +309,9 @@ func (pow *ProofOfWork) Validate() bool {
 }
 ```
 
-Terakhir, kita perlu mengimplmentasikan di file main.go
+kita perlu menambhkan fungsi Handle Vote di file `app/peer/hanlde.go`
 ```go
-package main
-
-import (
-	"flag"
-	"fmt"
-	"myapp/app/blockchain"
-	"myapp/app/peer"
-	"time"
-)
-
-// Fungsi untuk menangani suara dari voter dan menambahkan blok baru.
-func handleVote(p2p *peer.P2PNetwork, voterID, candidateID string) {
+func (p2p *P2PNetwork) HandleVote(voterID, candidateID string) {
 	voteData := blockchain.VoteData{
 		VoterID:     voterID,
 		CandidateID: candidateID,
@@ -359,6 +348,19 @@ func handleVote(p2p *peer.P2PNetwork, voterID, candidateID string) {
 		fmt.Println("Failed to validate block")
 	}
 }
+```
+
+Terakhir, kita perlu mengimplmentasikan di file main.go
+```go
+package main
+
+import (
+	"flag"
+	"fmt"
+	"myapp/app/blockchain"
+	"myapp/app/peer"
+	"time"
+)
 
 func main() {
 	port := flag.String("port", "3000", "Port to listen on")
@@ -417,8 +419,8 @@ func main() {
 	// Contoh: Memproses suara untuk testing.
 	go func() {
 		time.Sleep(2 * time.Second) // Simulasi jeda waktu.
-		handleVote(p2p, "voter123", "Alice")
-		handleVote(p2p, "voter456", "Bob")
+		p2p.HandleVote("voter123", "Alice")
+		p2p.HandleVote("voter456", "Bob")
 
 		p2p.Blockchain.Election.DisplayResults()
 	}()

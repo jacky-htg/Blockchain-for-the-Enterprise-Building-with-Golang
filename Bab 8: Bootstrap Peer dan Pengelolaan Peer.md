@@ -139,7 +139,7 @@ package pkg
 // Request adalah model untuk request dari client.
 type Request struct {
 	Type    string `json:"type"`
-	Payload string `json:"payload"`
+	Payload interface{} `json:"payload"`
 }
 ```
 
@@ -181,11 +181,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 	// Handle sesuai tipe request
 	switch req.Type {
 	case "REGISTER":
-		s.registerPeer(req.Payload, conn)
+		s.registerPeer(req.Payload.(string), conn)
 	case "GET_PEERS":
 		s.getAllPeers(conn)
 	case "REMOVE":
-		s.removePeer(req.Payload, conn)
+		s.removePeer(req.Payload.(string), conn)
 	default:
 		fmt.Println("Invalid request type")
 	}
@@ -425,159 +425,6 @@ Saya telah membuat server bootstrap peer ini dalam versi badger dan protobuf. Ji
 
 ## 8.2 Integrasi Bootstrap Peer dengan Aplikasi Blockchain
 
-Sebelum mengintegrasikan bootsrap peer dan aplikasi blockchain, kita akan memecah file `app/peer/peer.go` menjadi beberapa file sesuai dengan fungsionalitasnya.
-
-Pindahkan sebagian kode terjait handler, ke file baru `app/peer/handler.go`
-
-```go
-package peer
-
-import (
-	"encoding/json"
-	"fmt"
-	"myapp/app/blockchain"
-	"net"
-)
-
-// Handler untuk setiap koneksi peer
-func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
-	defer conn.Close()
-
-	decoder := json.NewDecoder(conn)
-	var incomingBlockchain blockchain.Blockchain
-	if err := decoder.Decode(&incomingBlockchain); err != nil {
-		fmt.Println("Error decoding blockchain:", err)
-		return
-	}
-
-	// Verifikasi dan update blockchain
-	if p2p.VerifyAndUpdateBlockchain(&incomingBlockchain) {
-		fmt.Println("Updated local blockchain with incoming blockchain.")
-	} else {
-		fmt.Println("Received invalid or shorter blockchain.")
-	}
-}
-
-// Verifikasi dan update blockchain jika lebih panjang
-func (p2p *P2PNetwork) VerifyAndUpdateBlockchain(incoming *blockchain.Blockchain) bool {
-	if !incoming.IsValid() {
-		return false
-	}
-
-	if len(incoming.Blocks) > len(p2p.Blockchain.Blocks) {
-		p2p.Blockchain = incoming
-		p2p.BroadcastBlockchain()
-		return true
-	}
-
-	return false
-}
-```
-
-Pindahkan sebagaan kode terkait broadcast ke file baru `app/peer/broadcast.go`. Pada kesempatan ini kita akan sekaligus mengganti json dengan sonic untuk performa yang lebih baik.
-
-```go
-package peer
-
-import (
-    "fmt"
-    "github.com/bytedance/sonic"
-    "net"
-)
-
-// BroadcastBlockchain mengirimkan seluruh blockchain ke semua peers yang terhubung.
-func (p2p *P2PNetwork) BroadcastBlockchain() {
-    for _, peer := range p2p.peers {
-        conn, err := net.Dial("tcp", peer.address)
-        if err != nil {
-            fmt.Println("Error connecting to peer:", err)
-            continue
-        }
-        defer conn.Close()
-
-        // Serialisasi blockchain menggunakan Sonic
-        data, err := sonic.Marshal(p2p.Blockchain)
-        if err != nil {
-            fmt.Println("Error encoding blockchain:", err)
-            continue
-        }
-
-        // Kirim data blockchain ke peer
-        if _, err := conn.Write(data); err != nil {
-            fmt.Println("Error sending blockchain:", err)
-        }
-    }
-}
-```
-
-Pindahkan sebagian kode terkait network ke file baru `app/peer/network.go`
-
-```go
-package peer
-
-import (
-	"encoding/json"
-	"fmt"
-	"net"
-)
-
-func (p2p *P2PNetwork) ListenForBlocks(port string) {
-	ln, err := net.Listen("tcp", ":"+port)
-	if err != nil {
-		fmt.Println("Error setting up listener:", err)
-		return
-	}
-	defer ln.Close()
-
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
-		}
-		go p2p.handleConnection(conn)
-	}
-}
-```
-Dengan perubahan ini, file `app/peer/peer.go` hanya akan berisi kode-kode terkait peer saja :
-
-```go
-package peer
-
-import (
-	"encoding/json"
-	"fmt"
-	"myapp/app/blockchain"
-	"net"
-)
-
-type Peer struct {
-	address string
-}
-
-type P2PNetwork struct {
-	peers      []Peer
-	Blockchain *blockchain.Blockchain
-}
-
-func NewP2PNetwork() *P2PNetwork {
-	return &P2PNetwork{
-		peers:      make([]Peer, 0),
-		Blockchain: &blockchain.Blockchain{},
-	}
-}
-
-func (p2p *P2PNetwork) AddPeer(address string) {
-	for _, peer := range p2p.peers {
-		if peer.address == address {
-			return // Peer sudah ada
-		}
-	}
-	peer := Peer{address: address}
-	p2p.peers = append(p2p.peers, peer)
-}
-```
-
 Untuk mengintegrasikan server bootstrap peer dengan aplikasi blockchain, langkah-langkah berikut akan membantu memastikan bahwa peer yang baru bergabung bisa menemukan dan terhubung ke peers yang sudah ada. Kita akan memodifikasi aplikasi blockchain agar dapat:
 
 1. Menghubungi bootstrap server saat memulai dan mendapatkan daftar peer.
@@ -590,6 +437,7 @@ Untuk point pertama dan kedua, kita akan membuat fungsi RegisterToBootstrap di f
 package peer
 
 import (
+	"bufio"
 	"fmt"
 	"myapp/app/blockchain"
 	"net"
@@ -597,15 +445,21 @@ import (
 	"github.com/bytedance/sonic"
 )
 
+type RegisterRequest struct {
+	Type    string `json:"type"`
+	Payload string `json:"payload"`
+}
+
+// Peer struct
 type Peer struct {
-	address string
+	Address string `json:"address"`
 }
 
 type P2PNetwork struct {
 	peers      []Peer
 	Blockchain *blockchain.Blockchain
-	bootstrap  string 
-	localAddr  string 
+	bootstrap  string // Alamat bootstrap server
+	localAddr  string // Alamat lokal peer
 }
 
 func NewP2PNetwork(bootstrap, localAddr string) *P2PNetwork {
@@ -619,11 +473,11 @@ func NewP2PNetwork(bootstrap, localAddr string) *P2PNetwork {
 
 func (p2p *P2PNetwork) AddPeer(address string) {
 	for _, peer := range p2p.peers {
-		if peer.address == address {
+		if peer.Address == address {
 			return // Peer sudah ada
 		}
 	}
-	peer := Peer{address: address}
+	peer := Peer{Address: address}
 	p2p.peers = append(p2p.peers, peer)
 }
 
@@ -635,16 +489,23 @@ func (p2p *P2PNetwork) RegisterToBootstrap() error {
 	defer conn.Close()
 
 	// Membuat payload untuk didaftarkan ke bootstrap
-	peer := map[string]string{"address": p2p.localAddr}
-	data, err := sonic.Marshal(peer)
+	payload := RegisterRequest{
+		Type:    "REGISTER",
+		Payload: p2p.localAddr,
+	}
+	data, err := sonic.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("gagal melakukan marshal data: %v", err)
 	}
 
-	// Mengirim data ke bootstrap server
-	if _, err := conn.Write(data); err != nil {
-		return fmt.Errorf("gagal mengirim data ke bootstrap: %v", err)
+	writer := bufio.NewWriter(conn)
+	data = append(data, '\n')
+
+	_, err = writer.WriteString(string(data))
+	if err != nil {
+		return fmt.Errorf("gagal mengirim request: %v", err)
 	}
+	writer.Flush()
 
 	fmt.Println("Berhasil mendaftar ke bootstrap server")
 	return nil
@@ -654,48 +515,69 @@ func (p2p *P2PNetwork) RegisterToBootstrap() error {
 Kita juga perlu menambahkan fungsi `GetPeersFromBootstrap()` di file `app/peer/network.go` :
 
 ```go
-func (p2p *P2PNetwork) GetPeersFromBootstrap() ([]string, error) {
-	conn, err := net.Dial("tcp", p2p.bootstrap)
+func (p2p *P2PNetwork) GetPeersFromBootstrap() ([]Peer, error) {
+	conn, err := net.DialTimeout("tcp", p2p.bootstrap, 30*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("gagal terhubung ke bootstrap server: %v", err)
 	}
 	defer conn.Close()
 
-	// Membaca data dari koneksi
-	data, err := io.ReadAll(conn)
+	reader := bufio.NewReader(conn)
+
+	req := BaseRequest{Type: "GET_PEERS"}
+	data, err := sonic.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("gagal membaca data dari bootstrap server: %v", err)
+		return nil, fmt.Errorf("gagal membuat request JSON: %v", err)
+	}
+	writer := bufio.NewWriter(conn)
+	data = append(data, '\n')
+
+	_, err = writer.WriteString(string(data))
+	if err != nil {
+		return nil, fmt.Errorf("gagal mengirim request: %v", err)
+	}
+	writer.Flush()
+
+	// Membaca response dari server
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return nil, fmt.Errorf("gagal membaca response: %v", err)
 	}
 
-	// Mendekode data menggunakan sonic
-	var peers []string
-	if err := sonic.Unmarshal(data, &peers); err != nil {
-		return nil, fmt.Errorf("gagal menerima daftar peers: %v", err)
+	var peers []Peer
+
+	err = sonic.Unmarshal([]byte(strings.TrimSpace(response)), &peers)
+	if err != nil {
+		return nil, fmt.Errorf("gagal melakukan unmarshal response: %v", err)
 	}
 
-	fmt.Println("Daftar peers diterima:", peers)
 	return peers, nil
 }
 ```
 
-Di file main.go akan ada penyesuaian dalam membuat jaringan P2PNetwork :
+Di file main.go akan ada penyesuaian dalam membuat jaringan P2PNetwork, serta menambhakan untuk registrasi peer ke server bootstrap :
 ```go
-	p2p := peer.NewP2PNetwork("localhost:4000", "localhost:"+*port)
+	bootstrapAddress := "localhost:4000"
+	loocalAddress := "localhost:" + *port
+
+	// Membuat jaringan P2P dan kontrak voting.
+	p2p := peer.NewP2PNetwork(bootstrapAddress, loocalAddress)
+
+	p2p.RegisterToBootstrap()
 ```
 Kemudian ubah penambahan peer secara manual dengan memanggil fungsi `GetPeersFromBootstrap()`:
 ```go
-	// Menambahkan peer (bootstrap).
 	peers, err := p2p.GetPeersFromBootstrap()
 	if err != nil {
-		fmt.Println("Error:", err)
-		return
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
 	for _, peer := range peers {
-		p2p.AddPeer(peer)
+		if peer.Address != loocalAddress {
+			p2p.AddPeer(peer.Address)
+		}
 	}
-
-	p2p.RegisterToBootstrap()
 ```
 
 Untuk poin ketiga, dimana peer yang baru bergabung perlu melakukan sync existing blockchain yang ada di jaringan, perlu dibuatkan penyesuaian di Blockchain agar support sync.Mutex serta membuat fungsu baru yaitu `SyncWithPeer()`. Modifikasi file `app/blockchain/blockchain.go` menjadi :

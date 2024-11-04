@@ -54,7 +54,7 @@
 - Menggunakan NATS atau Kafka untuk Pub/Sub
 - Integrasi Pub/Sub dengan Jaringan P2P
 
-**Bab 10: Keamanan dan Skalabilitas**
+[**Bab 10: Keamanan dan Skalabilitas**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%20%2010%3A%20Keamanan%20dan%20Skalabilitas.md)
 - Keamanan di Jaringan Blockchain
 - Mekanisme Kriptografi dan Keamanan Transaksi
 - Skalabilitas Jaringan Blockchain

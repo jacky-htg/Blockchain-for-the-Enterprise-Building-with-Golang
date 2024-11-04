@@ -1123,24 +1123,28 @@ func (s *Server) registerPeer(peer string, conn net.Conn) {
 	if !success {
 		fmt.Println("Failed to register peer:", peer)
 	} else {
-		s.broadcastPeers(peer)
+		s.broadcastPeers(peer, "register")
 	}
 }
 
 // ... existing code
 
-func (s *Server) broadcastPeers(peerAddress string) {
+func (s *Server) broadcastPeers(peerAddress, typeMsg string) {
 	s.pm.mu.Lock()
 	defer s.pm.mu.Unlock()
 
 	for _, existingPeer := range s.pm.peers {
 		if existingPeer.Address != peerAddress {
-			go s.notifyPeer(existingPeer.Address, peerAddress)
+			if typeMsg == "shutdown" {
+				go s.notifyShutdownPeer(existingPeer.Address, peerAddress)
+			} else {
+				go s.notifyNewPeer(existingPeer.Address, peerAddress)
+			}
 		}
 	}
 }
 
-func (s *Server) notifyPeer(existingPeer, newPeerAddress string) {
+func (s *Server) notifyNewPeer(existingPeer, newPeerAddress string) {
 	conn, err := net.Dial("tcp", existingPeer)
 	if err != nil {
 		fmt.Println("Error notifying peer:", err)
@@ -1193,3 +1197,374 @@ const (
 
 ## 8.4 Penanganan Shutdown Peer
 Jika ada satu peer yang mati/shutdown, maka peer tersebut harus memberitahu server bottstrap dengan memanggil endpoint `Remove`. Kemudian Server bootstrap harus membroadcast ke seluruh peer yang ada agar mereka menghapus peer tersebut.
+
+Kembali ke server bootstrap, di file `internal/bootstrap/handler.go` tambahkan endpoint untuk handle `shutdown_peer` :
+```go
+package bootstrap
+
+import (
+	"bootstrap-server/pkg"
+	"bufio"
+	"fmt"
+	"net"
+
+	"github.com/bytedance/sonic"
+)
+
+type MessageType string
+
+const (
+	NewPeerJoined MessageType = "new_peer_joined"
+	ShutdownPeer  MessageType = "shutdown_peer"
+)
+
+type Message struct {
+	Type MessageType `json:"type"`
+	Data []byte      `json:"data"`
+}
+
+// handleConnection menangani koneksi dan menentukan jenis request.
+func (s *Server) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	reader := bufio.NewReader(conn)
+
+	// Baca request dari client
+	data, err := reader.ReadBytes('\n')
+	if err != nil {
+		fmt.Println("Error reading from connection:", err)
+		return
+	}
+
+	var req pkg.Request
+	if err := sonic.Unmarshal(data, &req); err != nil {
+		fmt.Println("Invalid request format:", err)
+		return
+	}
+
+	println(req.Type)
+	fmt.Println(req.Payload)
+
+	// Handle sesuai tipe request
+	switch req.Type {
+	case "REGISTER":
+		s.registerPeer(req.Payload.(string), conn)
+	case "GET_PEERS":
+		s.getAllPeers(conn)
+	case "REMOVE":
+		s.removePeer(req.Payload.(string), conn)
+	default:
+		fmt.Println("Invalid request type")
+	}
+}
+
+// registerPeer menambahkan peer baru ke daftar.
+func (s *Server) registerPeer(peer string, conn net.Conn) {
+	success, msg := s.pm.RegisterPeer(peer)
+	fmt.Fprintln(conn, msg)
+
+	if !success {
+		fmt.Println("Failed to register peer:", peer)
+	} else {
+		s.broadcastPeers(peer, "register")
+	}
+}
+
+func (s *Server) getAllPeers(conn net.Conn) {
+	peers := s.pm.GetAllPeers()
+
+	data, err := sonic.Marshal(peers)
+	if err != nil {
+		fmt.Println("Error encoding peers:", err)
+		return
+	}
+	conn.Write(append(data, '\n'))
+}
+
+func (s *Server) removePeer(peer string, conn net.Conn) {
+	success, msg := s.pm.RemovePeer(peer)
+	fmt.Fprintln(conn, msg)
+
+	if !success {
+		fmt.Println("Failed to remove peer:", peer)
+	} else {
+		s.broadcastPeers(peer, "shutdown")
+	}
+}
+
+func (s *Server) broadcastPeers(peerAddress, typeMsg string) {
+	s.pm.mu.Lock()
+	defer s.pm.mu.Unlock()
+
+	for _, existingPeer := range s.pm.peers {
+		if existingPeer.Address != peerAddress {
+			if typeMsg == "shutdown" {
+				go s.notifyShutdownPeer(existingPeer.Address, peerAddress)
+			} else {
+				go s.notifyNewPeer(existingPeer.Address, peerAddress)
+			}
+		}
+	}
+}
+
+func (s *Server) notifyNewPeer(existingPeer, newPeerAddress string) {
+	conn, err := net.Dial("tcp", existingPeer)
+	if err != nil {
+		fmt.Println("Error notifying peer:", err)
+		return
+	}
+	defer conn.Close()
+
+	message := Message{
+		Type: NewPeerJoined,
+		Data: []byte(newPeerAddress),
+	}
+	data, _ := sonic.Marshal(message)
+
+	writer := bufio.NewWriter(conn)
+	data = append(data, '\n')
+
+	_, err = writer.WriteString(string(data))
+	if err != nil {
+		fmt.Println("Gagal mengirim request:", err)
+		return
+	}
+	writer.Flush()
+}
+
+func (s *Server) notifyShutdownPeer(existingPeer, newPeerAddress string) {
+	conn, err := net.Dial("tcp", existingPeer)
+	if err != nil {
+		fmt.Println("Error notifying peer:", err)
+		return
+	}
+	defer conn.Close()
+
+	message := Message{
+		Type: ShutdownPeer,
+		Data: []byte(newPeerAddress),
+	}
+	data, _ := sonic.Marshal(message)
+
+	writer := bufio.NewWriter(conn)
+	data = append(data, '\n')
+
+	_, err = writer.WriteString(string(data))
+	if err != nil {
+		fmt.Println("Gagal mengirim request:", err)
+		return
+	}
+	writer.Flush()
+}
+```
+Kemudian di aplikasi blockchain, tambahkan endpoint `shutdown_peer`, ubah file `app/peer/handler.go` :
+```go
+const (
+	BlockchainUpdate  MessageType = "blockchain_update"
+	RequestBlockchain MessageType = "request_blockchain"
+	NewPeerJoined     MessageType = "new_peer_joined"
+	ShutdownPeer      MessageType = "shutdown_peer"
+)
+
+func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	reader := bufio.NewReader(conn)
+
+	// Baca request dari client
+	data, err := reader.ReadBytes('\n')
+	if err != nil {
+		fmt.Println("Error reading from connection:", err)
+		return
+	}
+
+	var incomingMessage Message
+	if err := sonic.Unmarshal(data, &incomingMessage); err != nil {
+		fmt.Println("Error decoding blockchain:", err)
+		return
+	}
+
+	switch incomingMessage.Type {
+	case BlockchainUpdate:
+		// Verifikasi dan update blockchain
+		var blockchainData *blockchain.Blockchain
+		if err := sonic.Unmarshal(incomingMessage.Data, &blockchainData); err != nil {
+			fmt.Println("Error decoding blockchain:", err)
+			return
+		}
+		if p2p.VerifyAndUpdateBlockchain(blockchainData) {
+			fmt.Println("Updated local blockchain with incoming blockchain.")
+		} else {
+			fmt.Println("Received invalid or shorter blockchain.")
+		}
+
+	case RequestBlockchain:
+		blockchainData, _ := sonic.Marshal(p2p.Blockchain)
+		message := Message{Type: BlockchainUpdate, Data: blockchainData}
+		response, _ := sonic.Marshal(message)
+		conn.Write(response)
+
+	case NewPeerJoined:
+		p2p.AddPeer(string(incomingMessage.Data))
+
+	case ShutdownPeer:
+		p2p.RemovePeer(string(incomingMessage.Data))
+		fmt.Println(p2p.peers)
+
+	default:
+		fmt.Println("Received unknown message type:", incomingMessage.Type)
+	}
+}
+```
+
+Di file `app/peer/peer.go` tambahakan fungsi `RemovePeer()` dan `NotifyBootstrapOnShutdown()`
+```go
+func (p2p *P2PNetwork) RemovePeer(address string) {
+	for i, peer := range p2p.peers {
+		if peer.Address == address {
+			p2p.peers = append(p2p.peers[:i], p2p.peers[i+1:]...)
+			return
+		}
+	}
+}
+
+func (p2p *P2PNetwork) NotifyBootstrapOnShutdown() {
+	conn, err := net.Dial("tcp", p2p.bootstrap)
+	if err != nil {
+		fmt.Println("Error connecting to bootstrap server:", err)
+		return
+	}
+	defer conn.Close()
+
+	payload := RegisterRequest{
+		Type:    "REMOVE",
+		Payload: p2p.localAddr,
+	}
+	data, _ := sonic.Marshal(payload)
+	conn.Write(append(data, '\n'))
+}
+```
+
+Kemudian di file `main.go` tamnbahakn kode untuk handling shutdown :
+```go
+	package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"myapp/app/blockchain"
+	"myapp/app/peer"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+)
+
+func main() {
+	port := flag.String("port", "3000", "Port to listen on")
+	init := flag.Bool("init", false, "init blockchain")
+	flag.Parse()
+
+	bootstrapAddress := "localhost:4000"
+	loocalAddress := "localhost:" + *port
+
+	// Membuat jaringan P2P dan kontrak voting.
+	p2p := peer.NewP2PNetwork(bootstrapAddress, loocalAddress)
+
+	p2p.RegisterToBootstrap()
+
+	// Inisialisasi blockchain dengan instance Election
+	p2p.Blockchain = &blockchain.Blockchain{
+		Blocks:   []blockchain.Block{},
+		Election: blockchain.NewElection([]string{}),
+	}
+
+	peers, err := p2p.GetPeersFromBootstrap()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	for _, peer := range peers {
+		if peer.Address != loocalAddress {
+			p2p.AddPeer(peer.Address)
+		}
+	}
+
+	if *init {
+		p2p.Blockchain.Election.AddCandidate("Alice")
+		p2p.Blockchain.Election.AddCandidate("Bob")
+		p2p.Blockchain.Election.AddCandidate("Charlie")
+		println("prepare set genesis block")
+		if !p2p.Blockchain.SetGenesisBlock() {
+			p2p.BroadcastBlockchain()
+		}
+	} else {
+		// Sinkronisasi blockchain untuk peer baru
+		p2p.RequestBlockchainFromPeers()
+	}
+
+	// Mendengarkan koneksi untuk menerima blok.
+	go p2p.ListenForBlocks(*port)
+
+	go handleUserInput(p2p)
+
+	// handling peer shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		p2p.NotifyBootstrapOnShutdown()
+		os.Exit(0)
+	}()
+
+	// Menjaga agar program tetap berjalan.
+	select {}
+}
+
+func handleUserInput(p2p *peer.P2PNetwork) {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Println("Ketik perintah. Contoh: vote voterID kandidatID atau showresult")
+	for scanner.Scan() {
+		input := scanner.Text()
+		args := strings.Fields(input)
+
+		if len(args) == 0 {
+			fmt.Println("Masukkan perintah yang valid.")
+			continue
+		}
+
+		switch args[0] {
+		case "vote":
+			if len(args) < 3 {
+				fmt.Println("Perintah vote harus diikuti oleh voterID dan kandidatID.")
+				continue
+			}
+			voterID := args[1]
+			candidateID := args[2]
+			p2p.HandleVote(voterID, candidateID)
+			fmt.Printf("Vote dari %s untuk %s telah dicatat.\n", voterID, candidateID)
+
+		case "showresult":
+			fmt.Println("Hasil voting saat ini:")
+			p2p.Blockchain.Election.DisplayResults()
+
+		default:
+			fmt.Println("Perintah tidak dikenal:", args[0])
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error membaca input:", err)
+	}
+}
+```
+
+Kode di atas, selain hanlding shutdown, saya tambahkan untuk input perintahs ecara dinamis melalui fungsi `handleUserInput()`.
+
+Untuk menjalankan aplikasi lakukan langka berikut:
+1. Nyalakan server bootstrap dengan perintah `go run cmd/main.go` di aplikasi bootstrap
+2. Di aplikasi blockchain, jalankan `go run main.go -port=3000 -init=true` untuk membuat init jaringan peer to peer yang membuat genesis block.
+3. Di aplikasi blockchain, jalankan node-node yang laian, seperti: `go run main.go -port=3001` , `go run main.go -port=3002` dan `go run main.go -port=3003`
+
+Sekarang aplikasi blockchain kita sudah bisa berjariangan secara dinamis (tidak manual) memanfaatkan server bootstrap peer.

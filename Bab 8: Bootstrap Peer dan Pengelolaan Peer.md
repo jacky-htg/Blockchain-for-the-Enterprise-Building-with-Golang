@@ -1097,5 +1097,99 @@ func main() {
 ```
 
 ## 8.3 Peer Discovery
-Saat ada peer baru bergabung, peer-peer lain perlu melakukan discovery peer.
+Saat ada peer baru bergabung, peer-peer lain perlu melakukan discovery peer. Untuk melakukan peer discovery ini, ada beberapa pendekatan yang bisa dilakukan:
 
+ 1. Menggunakan Broadcast dari Bootstrap Server
+Setiap kali peer baru bergabung, bootstrap server dapat memberitahu semua peer yang sudah ada tentang peer baru tersebut. Flow yang dilakukan adalah setelah peer yang baru join melakukan registrasi peer ke bootstrap, maka bootstrap akan melakukan broadcast ke seluruh existing peer agar mereka bisa menambhkan ke daftar peer mereka.
+
+2. Periodic Peer Discovery (Polling)
+Setiap peer melakukan polling berkala ke bootstrap server untuk mendapatkan daftar terbaru peers.
+
+3. Broadcast dari Peer yang Baru
+Setelah mendapatkan list peer yang ada di jaringan, peer baru bisa melanjutkan untuk melakukan broadcast keberadaan-nya ke seluruh peer yang ada.
+
+5. Gossip protokol
+Peer baru akan memberi tahu keberadaan dirinya ke salah satu peer. Kemudian peer yang diberi tahu akan memberi tahu ke peer lainya, berikut berantai sepertio sebuah gossip menyebar luas.
+
+Karena kita sudah memiliki sebuah server bootstrap peer, saya akan menggunakan pendektan yang pertama. Berikut implementasinya:
+
+Di aplikasi bootstrap, update file internal/bootstrap/handler.go, di dalam registerPeer, jika sudah sukses melakukan registrasi, call fungsi `s.broadcastPeers(peer)`. Kemudian masioh di file yang sama, buat fungsi broadcastPeers tersebut.
+
+```go
+func (s *Server) registerPeer(peer string, conn net.Conn) {
+	success, msg := s.pm.RegisterPeer(peer)
+	fmt.Fprintln(conn, msg)
+
+	if !success {
+		fmt.Println("Failed to register peer:", peer)
+	} else {
+		s.broadcastPeers(peer)
+	}
+}
+
+// ... existing code
+
+func (s *Server) broadcastPeers(peerAddress string) {
+	s.pm.mu.Lock()
+	defer s.pm.mu.Unlock()
+
+	for _, existingPeer := range s.pm.peers {
+		if existingPeer.Address != peerAddress {
+			go s.notifyPeer(existingPeer.Address, peerAddress)
+		}
+	}
+}
+
+func (s *Server) notifyPeer(existingPeer, newPeerAddress string) {
+	conn, err := net.Dial("tcp", existingPeer)
+	if err != nil {
+		fmt.Println("Error notifying peer:", err)
+		return
+	}
+	defer conn.Close()
+
+	message := Message{
+		Type: NewPeerJoined,
+		Data: []byte(newPeerAddress),
+	}
+	data, _ := sonic.Marshal(message)
+
+	writer := bufio.NewWriter(conn)
+	data = append(data, '\n')
+
+	_, err = writer.WriteString(string(data))
+	if err != nil {
+		fmt.Println("Gagal mengirim request:", err)
+		return
+	}
+	writer.Flush()
+}
+```
+
+Untuk inetragsi dengan aplikasi blockchain, di dalam file `app/peer/handler.go` tambahakan endpoint `NewPeerJoined`
+
+```go
+const (
+	BlockchainUpdate  MessageType = "blockchain_update"
+	RequestBlockchain MessageType = "request_blockchain"
+	NewPeerJoined     MessageType = "new_peer_joined"
+)
+
+// ... existing code
+
+	case RequestBlockchain:
+		blockchainData, _ := sonic.Marshal(p2p.Blockchain)
+		message := Message{Type: BlockchainUpdate, Data: blockchainData}
+		response, _ := sonic.Marshal(message)
+		conn.Write(response)
+
+	case NewPeerJoined:
+		p2p.AddPeer(string(incomingMessage.Data))
+
+	default:
+		fmt.Println("Received unknown message type:", incomingMessage.Type)
+	}
+```
+
+## 8.4 Penanganan Shutdown Peer
+Jika ada satu peer yang mati/shutdown, maka peer tersebut harus memberitahu server bottstrap dengan memanggil endpoint `Remove`. Kemudian Server bootstrap harus membroadcast ke seluruh peer yang ada agar mereka menghapus peer tersebut.

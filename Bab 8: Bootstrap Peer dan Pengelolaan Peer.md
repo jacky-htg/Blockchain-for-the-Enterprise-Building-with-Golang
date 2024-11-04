@@ -580,20 +580,209 @@ Kemudian ubah penambahan peer secara manual dengan memanggil fungsi `GetPeersFro
 	}
 ```
 
-Untuk poin ketiga, dimana peer yang baru bergabung perlu melakukan sync existing blockchain yang ada di jaringan, perlu dibuatkan penyesuaian di Blockchain agar support sync.Mutex serta membuat fungsu baru yaitu `SyncWithPeer()`. Modifikasi file `app/blockchain/blockchain.go` menjadi :
+Untuk poin ketiga, dimana peer yang baru bergabung perlu melakukan sync existing blockchain yang ada di jaringan, perlu dibuatkan penyesuaian di Blockchain agar support sync.Mutex serta membuat fungsu baru yaitu `SyncWithPeer()`. Sebelum itu, karena saat ini kita membutuhkan 2 endpoint, yaitu, `BroadcastBlockchain()` dan `SyncWithPeer()`, kita perlu mengubah `handleConnection()` agar support untuk menerima 2 enpoint yang berbeda.
+
+Modifikasi file `app/peer/handler.go` menjadi:
+```go
+package peer
+
+import (
+	"bufio"
+	"fmt"
+	"myapp/app/blockchain"
+	"net"
+	"time"
+
+	"github.com/bytedance/sonic"
+)
+
+type MessageType string
+
+const (
+	BlockchainUpdate MessageType = "blockchain_update"
+)
+
+type Message struct {
+	Type MessageType `json:"type"`
+	Data []byte      `json:"data"`
+}
+
+// Handler untuk setiap koneksi peer
+func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	reader := bufio.NewReader(conn)
+
+	// Baca request dari client
+	data, err := reader.ReadBytes('\n')
+	if err != nil {
+		fmt.Println("Error reading from connection:", err)
+		return
+	}
+
+	var incomingMessage Message
+	if err := sonic.Unmarshal(data, &incomingMessage); err != nil {
+		fmt.Println("Error decoding blockchain:", err)
+		return
+	}
+
+	switch incomingMessage.Type {
+	case BlockchainUpdate:
+		// Verifikasi dan update blockchain
+		var blockchaiData *blockchain.Blockchain
+		if err := sonic.Unmarshal(incomingMessage.Data, &blockchaiData); err != nil {
+			fmt.Println("Error decoding blockchain:", err)
+			return
+		}
+		if p2p.VerifyAndUpdateBlockchain(blockchaiData) {
+			fmt.Println("Updated local blockchain with incoming blockchain.")
+		} else {
+			fmt.Println("Received invalid or shorter blockchain.")
+		}
+	default:
+		fmt.Println("Received unknown message type:", incomingMessage.Type)
+	}
+}
+
+// Verifikasi dan update blockchain jika lebih panjang
+func (p2p *P2PNetwork) VerifyAndUpdateBlockchain(incoming *blockchain.Blockchain) bool {
+	if !incoming.IsValid() {
+		return false
+	}
+
+	if len(incoming.Blocks) > len(p2p.Blockchain.Blocks) {
+		p2p.Blockchain = incoming
+		return true
+	}
+
+	return false
+}
+
+// Fungsi untuk menangani suara dari voter dan menambahkan blok baru.
+func (p2p *P2PNetwork) HandleVote(voterID, candidateID string) {
+	voteData := blockchain.VoteData{
+		VoterID:     voterID,
+		CandidateID: candidateID,
+		Timestamp:   time.Now().Unix(),
+	}
+
+	newBlock := blockchain.Block{
+		Index:     len(p2p.Blockchain.Blocks),
+		Timestamp: time.Now().Unix(),
+		Data:      voteData,
+		PrevHash:  []byte{},
+	}
+
+	if len(p2p.Blockchain.Blocks) > 0 {
+		newBlock.PrevHash = p2p.Blockchain.Blocks[len(p2p.Blockchain.Blocks)-1].Hash
+	}
+
+	pow := blockchain.NewProofOfWork(&newBlock)
+	nonce, hash := pow.Run()
+	newBlock.Hash = hash
+	newBlock.Nonce = nonce
+
+	if pow.Validate() {
+		if p2p.Blockchain.AddBlock(newBlock) {
+			err := p2p.Blockchain.Election.Vote(voterID, candidateID) // Pastikan Election ada di blockchain
+			if err != nil {
+				fmt.Println("Error while voting:", err)
+			} else {
+				p2p.BroadcastBlockchain()
+				fmt.Println("Vote successful for voter:", voterID)
+			}
+		}
+	} else {
+		fmt.Println("Failed to validate block")
+	}
+}
+```
+
+Perubahan kode di atas adalah menambahkan messageType untuk mendeteksi request apakah request blockchain_update atau messageType yang lainnya, misal ke depan akan ditambahkan messageType sync_with_peer. Kemudian untuk struct message berisi messageType untuk deteksi endpoint, dan Data untuk payload request. Data type datanya []byte agar bisa diisi dengan struct yang bervariasi, karena tiap endpoint pasti melempar payload yang berbeda. Saya menambahkan penghapusan broadcast di fungsi `VerifyAndUpdateBlockchain()` agar tidak membuat flooding jaringan ketika setiap peer membroadcast ulang ketika mereka mendapat pembaruan blockchain.
+
+Karena `handleConnection()` berubah, maka fungsi `BroadcastBlockchain()` juga harus disesuaikan agar mengirim payload berupa messageType blockchain_update dan Data dalam bentuk []byte. Modifikasi fungsi `BroadcastBlockchain()` di file `app/peer/broadcast.go` menjadi :
+
+```go
+func (p2p *P2PNetwork) BroadcastBlockchain() {
+	for _, peer := range p2p.peers {
+		conn, err := net.Dial("tcp", peer.Address)
+		if err != nil {
+			fmt.Println("Error connecting to peer:", err)
+			continue
+		}
+		defer conn.Close()
+
+		blockchainData, err := sonic.Marshal(p2p.Blockchain)
+		if err != nil {
+			fmt.Println("Gagal membuat JSON untuk Blockchain:", err)
+			continue
+		}
+		message := Message{
+			Type: BlockchainUpdate,
+			Data: blockchainData,
+		}
+		data, err := sonic.Marshal(message)
+		if err != nil {
+			fmt.Println("gagal membuat request JSON:", err)
+			continue
+		}
+		writer := bufio.NewWriter(conn)
+		data = append(data, '\n')
+
+		_, err = writer.WriteString(string(data))
+		if err != nil {
+			fmt.Println("gagal mengirim request:", err)
+			continue
+		}
+		writer.Flush()
+	}
+}
+```
+
+Dalam kode di atas, saya juga mengubah pengrimiman data menggunakan bufio. Ini memungkinkan buffering saat membaca atau menulis, sehingga tidak langsung mengirim data byte per byte. Dengan bufio, data dikumpulkan dalam buffer terlebih dahulu, lalu ditulis atau dibaca dalam jumlah besar sekaligus. Hal ini mengurangi jumlah operasi I/O, yang bisa mempercepat proses, terutama saat mengirim data melalui jaringan. Karena mengurangi frekuensi operasi I/O yang mahal, bufio sering kali dapat mempercepat transfer data pada koneksi jaringan, sehingga mengurangi latensi dan mempercepat penulisan.
+
+Setelah melakukan adjustmen terhadap fitur-fitur lama, kini saatnya kita menambah fitur baru, yaitu `SyncWithPeer()`. Seperti yang dibahas sebelumnya, operasi sync existing blockchain yang ada di jaringan, membutuhkan sync.Mutex untuk Blockchain, untuk itu mari ubah file `app/blockchain/blockchain.go` menjadi :
 
 ```go
 package blockchain
 
 import (
 	"bytes"
+	"fmt"
 	"sync"
+	"time"
 )
 
 type Blockchain struct {
 	Blocks   []Block
 	Election *Election
 	mu       sync.Mutex
+}
+
+func (bc *Blockchain) SetGenesisBlock() bool {
+	if len(bc.Blocks) == 0 {
+		// Membuat dan membroadcast blok genesis.
+		genesisBlock := Block{
+			Index:     0,
+			Timestamp: time.Now().Unix(),
+			Data:      VoteData{VoterID: "system", CandidateID: "Genesis Block"},
+		}
+		pow := NewProofOfWork(&genesisBlock)
+		nonce, hash := pow.Run()
+		genesisBlock.Hash = hash
+		genesisBlock.Nonce = nonce
+
+		if pow.Validate() {
+			if bc.AddBlock(genesisBlock) {
+				fmt.Println("Added genesis block:", genesisBlock.Data.VoterID)
+				return true
+			}
+		} else {
+			fmt.Println("Failed to validate genesis block")
+		}
+	}
+
+	return false
 }
 
 func (bc *Blockchain) AddBlock(newBlock Block) bool {
@@ -626,16 +815,286 @@ func (bc *Blockchain) IsValid() bool {
 	return true
 }
 
-func (bc *Blockchain) SyncWithPeer(peerBlocks []Block) {
+func (bc *Blockchain) SyncWithPeer(peerBlocks []Block, election *Election) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
 	if len(peerBlocks) > len(bc.Blocks) {
 		bc.Blocks = peerBlocks
+		bc.Election = election
+	}
+}
+
+```
+
+Agar peer baru dapat melakukan sinkronisasi blockchain saat bergabung, kita dapat menambahkan beberapa langkah tambahan ke dalam arsitektur. Berikut ini langkah-langkah yang dapat dilakukan:
+
+1. Menambahkan Mekanisme Permintaan Sync pada Join Peer Baru
+Ketika peer baru bergabung ke jaringan, ia harus meminta salinan blockchain terbaru dari peer lain. Buat fungsi yang akan meminta data blockchain dari satu atau beberapa peer yang sudah ada di jaringan. Fungsi ini bisa bernama RequestBlockchainFromPeers. 
+
+2. Menerapkan Endpoint untuk Menyediakan Blockchain bagi Peer Lain
+Peer existing harus memiliki cara untuk menanggapi permintaan sync dari peer baru dengan mengirim salinan blockchain lokal mereka. Kita dapat menambahkan endpoint baru di dalam jaringan P2P, misalnya HandleRequestBlockchain, yang mengirimkan salinan blockchain sebagai respons.
+
+3. Memperbarui main.go untuk memanggil Fungsi untuk Memulai Sinkronisasi
+Pada saat peer baru bergabung, lakukan proses sinkronisasi dengan memanggil RequestBlockchainFromPeers agar peer baru mendapatkan salinan blockchain terbaru. Jika peer baru menerima blockchain, ia akan menggunakan SyncWithPeer untuk memperbarui blockchain lokalnya.
+
+Berikut implmentasinya, update file `app/peer/hanlder.go` menjadi :
+
+```go
+package peer
+
+import (
+	"bufio"
+	"fmt"
+	"myapp/app/blockchain"
+	"net"
+	"time"
+
+	"github.com/bytedance/sonic"
+)
+
+type MessageType string
+
+const (
+	BlockchainUpdate  MessageType = "blockchain_update"
+	RequestBlockchain MessageType = "request_blockchain"
+)
+
+type Message struct {
+	Type MessageType `json:"type"`
+	Data []byte      `json:"data"`
+}
+
+// Handler untuk setiap koneksi peer
+func (p2p *P2PNetwork) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	reader := bufio.NewReader(conn)
+
+	// Baca request dari client
+	data, err := reader.ReadBytes('\n')
+	if err != nil {
+		fmt.Println("Error reading from connection:", err)
+		return
+	}
+
+	var incomingMessage Message
+	if err := sonic.Unmarshal(data, &incomingMessage); err != nil {
+		fmt.Println("Error decoding blockchain:", err)
+		return
+	}
+
+	switch incomingMessage.Type {
+	case BlockchainUpdate:
+		// Verifikasi dan update blockchain
+		var blockchaiData *blockchain.Blockchain
+		if err := sonic.Unmarshal(incomingMessage.Data, &blockchaiData); err != nil {
+			fmt.Println("Error decoding blockchain:", err)
+			return
+		}
+		if p2p.VerifyAndUpdateBlockchain(blockchaiData) {
+			fmt.Println("Updated local blockchain with incoming blockchain.")
+		} else {
+			fmt.Println("Received invalid or shorter blockchain.")
+		}
+
+	case RequestBlockchain:
+		blockchainData, _ := sonic.Marshal(p2p.Blockchain)
+		message := Message{Type: BlockchainUpdate, Data: blockchainData}
+		response, _ := sonic.Marshal(message)
+		conn.Write(response)
+
+	default:
+		fmt.Println("Received unknown message type:", incomingMessage.Type)
+	}
+}
+
+// Verifikasi dan update blockchain jika lebih panjang
+func (p2p *P2PNetwork) VerifyAndUpdateBlockchain(incoming *blockchain.Blockchain) bool {
+	if !incoming.IsValid() {
+		return false
+	}
+
+	if len(incoming.Blocks) > len(p2p.Blockchain.Blocks) {
+		p2p.Blockchain = incoming
+		for _, b := range p2p.Blockchain.Blocks {
+			fmt.Println(b.Data)
+		}
+		return true
+	}
+
+	return false
+}
+
+// Fungsi untuk menangani suara dari voter dan menambahkan blok baru.
+func (p2p *P2PNetwork) HandleVote(voterID, candidateID string) {
+	for _, block := range p2p.Blockchain.Blocks {
+		if block.Data.VoterID == voterID {
+			fmt.Println("Voter already voted:", voterID)
+			return
+		}
+	}
+
+	voteData := blockchain.VoteData{
+		VoterID:     voterID,
+		CandidateID: candidateID,
+		Timestamp:   time.Now().Unix(),
+	}
+
+	newBlock := blockchain.Block{
+		Index:     len(p2p.Blockchain.Blocks),
+		Timestamp: time.Now().Unix(),
+		Data:      voteData,
+		PrevHash:  []byte{},
+	}
+
+	if len(p2p.Blockchain.Blocks) > 0 {
+		newBlock.PrevHash = p2p.Blockchain.Blocks[len(p2p.Blockchain.Blocks)-1].Hash
+	}
+
+	pow := blockchain.NewProofOfWork(&newBlock)
+	nonce, hash := pow.Run()
+	newBlock.Hash = hash
+	newBlock.Nonce = nonce
+
+	if pow.Validate() {
+		if p2p.Blockchain.AddBlock(newBlock) {
+			err := p2p.Blockchain.Election.Vote(voterID, candidateID) // Pastikan Election ada di blockchain
+			if err != nil {
+				fmt.Println("Error while voting:", err)
+			} else {
+				p2p.BroadcastBlockchain()
+				fmt.Println("Vote successful for voter:", voterID)
+			}
+		}
+	} else {
+		fmt.Println("Failed to validate block")
+	}
+}
+
+func (p2p *P2PNetwork) RequestBlockchainFromPeers() {
+	for _, peer := range p2p.peers {
+		conn, err := net.Dial("tcp", peer.Address)
+		if err != nil {
+			fmt.Println("Error connecting to peer:", err)
+			continue
+		}
+		defer conn.Close()
+
+		// Kirim permintaan untuk mendapatkan blockchain
+		message := Message{Type: RequestBlockchain}
+		data, _ := sonic.Marshal(message)
+		writer := bufio.NewWriter(conn)
+		data = append(data, '\n')
+
+		_, err = writer.WriteString(string(data))
+		if err != nil {
+			fmt.Println("gagal mengirim request:", err)
+			continue
+		}
+		writer.Flush()
+
+		// Terima blockchain dari peer
+		reader := bufio.NewReader(conn)
+		peerData, _ := reader.ReadBytes('\n')
+		var receivedMessage Message
+		if err := sonic.Unmarshal(peerData, &receivedMessage); err != nil {
+			fmt.Println("Error decoding blockchain from peer:", err)
+			continue
+		}
+
+		// Pastikan type data adalah BlockchainUpdate sebelum disinkronkan
+		if receivedMessage.Type == BlockchainUpdate {
+			var peerBlockchain *blockchain.Blockchain
+			if err := sonic.Unmarshal(receivedMessage.Data, &peerBlockchain); err != nil {
+				fmt.Println("Error decoding blockchain blocks:", err)
+				continue
+			}
+			p2p.Blockchain.SyncWithPeer(peerBlockchain.Blocks, peerBlockchain.Election)
+			fmt.Println("Synchronized blockchain with peer:", peer.Address)
+			break // Stop setelah sinkronisasi dengan satu peer
+		}
 	}
 }
 ```
 
+dan update file `main.go` menjadi:
+```go
+package main
+
+import (
+	"flag"
+	"fmt"
+	"myapp/app/blockchain"
+	"myapp/app/peer"
+	"os"
+	"time"
+)
+
+func main() {
+	port := flag.String("port", "5000", "Port to listen on")
+	flag.Parse()
+
+	bootstrapAddress := "localhost:4000"
+	loocalAddress := "localhost:" + *port
+
+	// Membuat jaringan P2P dan kontrak voting.
+	p2p := peer.NewP2PNetwork(bootstrapAddress, loocalAddress)
+
+	p2p.RegisterToBootstrap()
+
+	// Inisialisasi blockchain dengan instance Election
+	p2p.Blockchain = &blockchain.Blockchain{
+		Blocks:   []blockchain.Block{},
+		Election: blockchain.NewElection([]string{}),
+	}
+
+	peers, err := p2p.GetPeersFromBootstrap()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	for _, peer := range peers {
+		if peer.Address != loocalAddress {
+			println(peer.Address)
+			p2p.AddPeer(peer.Address)
+		}
+	}
+
+	if *port == "3000" {
+		p2p.Blockchain.Election.AddCandidate("Alice")
+		p2p.Blockchain.Election.AddCandidate("Bob")
+		p2p.Blockchain.Election.AddCandidate("Charlie")
+
+		if !p2p.Blockchain.SetGenesisBlock() {
+			p2p.BroadcastBlockchain()
+		}
+	} else {
+		// Sinkronisasi blockchain untuk peer baru
+		p2p.RequestBlockchainFromPeers()
+	}
+
+	// Mendengarkan koneksi untuk menerima blok.
+	go p2p.ListenForBlocks(*port)
+
+	// Contoh: Memproses suara untuk testing.
+	go func() {
+		time.Sleep(2 * time.Second) // Simulasi jeda waktu.
+		if len(p2p.Blockchain.Blocks) > 0 {
+			// Contoh pemrosesan suara
+			p2p.HandleVote("voter123", "Alice")
+			p2p.HandleVote("voter456", "Bob")
+
+			// Menampilkan hasil voting
+			p2p.Blockchain.Election.DisplayResults()
+		}
+	}()
+
+	// Menjaga agar program tetap berjalan.
+	select {}
+}
+```
 
 ## 8.3 Peer Discovery
 Saat ada peer baru bergabung, peer-peer lain perlu melakukan discovery peer.

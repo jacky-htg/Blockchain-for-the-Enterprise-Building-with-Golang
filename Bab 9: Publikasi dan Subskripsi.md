@@ -23,7 +23,7 @@ NATS adalah sistem messaging berbasis Pub/Sub yang dikenal cepat, ringan, dan co
 
 Implementasi NATS di jaringan blockchain melibatkan pengaturan channel atau subject yang berfungsi sebagai topik, seperti NewBlock atau NewTransaction, yang relevan bagi node-node yang membutuhkan informasi tersebut. Setiap node yang berlangganan (subscribe) pada topik tertentu akan menerima pembaruan saat pesan dipublikasikan. Contoh di bawah ini menunjukkan cara sederhana untuk mengintegrasikan NATS dalam jaringan blockchain, memungkinkan node untuk berlangganan pembaruan blok baru.
 
-``go
+```go
 import (
 	"fmt"
 	"log"

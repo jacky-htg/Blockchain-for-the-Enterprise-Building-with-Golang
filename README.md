@@ -72,7 +72,7 @@
 - Deployment ke Lingkungan Produksi
 - Monitoring dan Maintenance
 
-**Bab 13: Tren Masa Depan Blockchain**
+[**Bab 13: Tren Masa Depan Blockchain**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/WIP%3A%20Bab%2013%3A%20Tren%20Masa%20Depan%20Blockchain.md)
 - Tren Teknologi Blockchain Terbaru
 - Masa Depan Blockchain dan Aplikasi Potensial
 - Blockchain di Industri 4.0

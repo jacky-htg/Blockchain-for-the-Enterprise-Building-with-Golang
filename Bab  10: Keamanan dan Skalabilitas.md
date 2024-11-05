@@ -49,8 +49,67 @@ Pengguna blockchain sering menjadi target phishing yang dirancang untuk mencuri 
 ### 10.1.2 Solusi Keamanan
 
 1. Penerapan Rate Limiting
+
+Untuk mencegah serangan DDoS, kita dapat menerapkan rate limiting pada endpoint yang ada di server bootstrap dan node blockchain. Dengan cara ini, kita dapat membatasi jumlah permintaan yang diterima dalam periode waktu tertentu.
+
+Contoh implementasi rate limiting di server bootstrap:
+
+```go
+package bootstrap
+
+import (
+    "time"
+    "sync"
+)
+
+type RateLimiter struct {
+    mu          sync.Mutex
+    requests    map[string]int
+    lastRequest map[string]time.Time
+    limit       int
+    window      time.Duration
+}
+
+func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
+    return &RateLimiter{
+        requests:    make(map[string]int),
+        lastRequest: make(map[string]time.Time),
+        limit:       limit,
+        window:      window,
+    }
+}
+
+func (rl *RateLimiter) Allow(ip string) bool {
+    rl.mu.Lock()
+    defer rl.mu.Unlock()
+
+    now := time.Now()
+    if last, ok := rl.lastRequest[ip]; ok && now.Sub(last) < rl.window {
+        if rl.requests[ip] >= rl.limit {
+            return false
+        }
+        rl.requests[ip]++
+    } else {
+        rl.requests[ip] = 1
+    }
+
+    rl.lastRequest[ip] = now
+    return true
+}
+```
+
+Fungsi ini akan mengecek jumlah request dari 1 IP dalam time window tertentu apakah masih dibawah limitasi yang kita buat. Jika ya maka request akan diproses, dan jika tidak maka request akan ditolak. Kita bisa melakukan konfigurasi rate limit yang diingin ketika memanggil fungsi `NewRateLimiter()`, kemudian jika ada request yang masuk, kita mengecek dengan memanggil fungsi `Allow()`.
+
+Begitu juga di aplikasi blockchain, fungsi rate limiter ini bsia dipasang dengan logika yang sama.
+
 2. Penerapan Hashing pada Blockchain
+
+Kita sudah menerapkan hashing pada Bab 4. Penerapan hashing pada blockchain membuat blockchain mempunyai tingkat keamanan transaksi yang tinggi. Blok-blok dalam blockchain berisi tiga elemen utama: data transaksi, hash dari blok tersebut, dan hash dari blok sebelumnya. Ini menjamin keamanan dalam transaksi blockchain. Memalsukan transkasi blockchain menjadi sangat sulit, karena penyerang tidak bisa memalsukan satu block transaksi saja, melainkan harus membuat ulang seluruh blockchain.
+
 3. Penerapan Konsensus
+
+Kita juga sudah menerapkan konsensus pada Bab 6. Dengan konsensus, seorang penyerang yang memalsukan blockchain, akan ditolak oleh mayoritas jaringan. Penerapan konsensus seperti POW (proof of work) yang membutuhkan komputasi tinggi, membuat penyerang yang ingin menguasai 51% jaringan, harus mengeluarkan ongkos yang sangat tinggi, karena semua transaksi harus melewati POW yang nyata.
+
 4. Verifikasi Peer
 5. Deteksi dan Penanganan Node Malicious
 6. Tidak menyimpan data sensitif dalam blockchain

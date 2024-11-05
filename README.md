@@ -60,7 +60,7 @@
 - Skalabilitas Jaringan Blockchain
 - Mengatasi Masalah Skalabilitas
 
-**Bab 11: Aplikasi Enterprise dengan Blockchain**
+[**Bab 11: Aplikasi Enterprise dengan Blockchain**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/WIP%3A%20Bab%2011%3A%20Aplikasi%20Enterprise%20dengan%20Blockchain.md)
 - Memenuhi Standar Enterprise
 - Desain Arsitektur untuk Aplikasi Enterprise
 - Studi Kasus: Implementasi Aplikasi Blockchain di Sektor Industri

@@ -111,12 +111,92 @@ Kita sudah menerapkan hashing pada Bab 4. Penerapan hashing pada blockchain memb
 Kita juga sudah menerapkan konsensus pada Bab 6. Dengan konsensus, seorang penyerang yang memalsukan blockchain, akan ditolak oleh mayoritas jaringan. Penerapan konsensus seperti POW (proof of work) yang membutuhkan komputasi tinggi, membuat penyerang yang ingin menguasai 51% jaringan, harus mengeluarkan ongkos yang sangat tinggi, karena semua transaksi harus melewati POW yang nyata.
 
 4. Verifikasi Peer
+
+Dalam proses discovery peer, kita harus memastikan bahwa node yang bergabung adalah node yang sah. Salah satu cara untuk melakukannya adalah dengan menggunakan whitelist IP atau menggunakan metode handshake yang memverifikasi identitas peer sebelum menambahkannya ke dalam jaringan. 
+
+Metode whitelist IP dapat dilakukan di server bootstrap peer yang sudah dibuat sebelumnya. Pada endpoint `REGISTER` tambahkan logik untuk memverifikasi berdasarkan white list IP.  Berikut contoh implementasinya:
+
+```go
+func (s *Server) registerPeer(peer string, conn net.Conn) {
+    if !s.isValidPeer(peer) {
+        fmt.Fprintln(conn, "Invalid peer address")
+        return
+    }
+
+    success, msg := s.pm.RegisterPeer(peer)
+    fmt.Fprintln(conn, msg)
+
+    if success {
+        s.broadcastPeers(peer, "register")
+    } else {
+        fmt.Println("Failed to register peer:", peer)
+    }
+}
+
+func (s *Server) isValidPeer(peer string) bool {
+    // Implementasi verifikasi, misalnya dengan memeriksa whitelist IP
+    return true 
+}
+```
+
+Pertanyaannya, darimana list IP didapatkan? Ini bisa dengan banyak cara, misalkan kita membuat sebuah aplikasi frontend yang berisi form pendaftaran, dimana proses registrasi akan memasukkan nama register, ktp, alamat, email, nomor hp, dan alamat IP server mereka. Verifikasi secara otomatis bisa dilakukan untuk meverifikasi alamat email dan no HP adalah valid. Bisa juga verifikasi liveness, verifikasi kesesuaian photo dengan ktp, dan lain-lain. Jika diperlukan, verifikasi bisa dilakukan secara manual oleh tim verifikasi.
+
+Dalam koteks studi kasus sistem pemilu, verifikasi jauh lebih mudah, karena node-node yang ada dibuat oleh otoritas penyelenggara pemilu yang sah, sehingga whitelist IP menjadi proses yang sangat mudah. Untuk pihak publik seperti media massa, LSM dan pemantau pemilu, bisa melakukan proses registrasi terlebih dahulu untuk diverifikasi. 
+
 5. Deteksi dan Penanganan Node Malicious
+
+Mengimplementasikan mekanisme untuk mendeteksi node jahat sangat penting. Salah satu cara adalah dengan menggunakan reputasi peer. Setiap peer dapat memberikan penilaian terhadap peer lainnya berdasarkan keandalannya dalam memverifikasi transaksi dan blok.
+
+Contoh implementasi sederhana deteksi node jahat:
+
+```go
+type Peer struct {
+    Address string
+    Reputation int
+}
+
+func (p *P2PNetwork) EvaluatePeer(peerAddress string, successful bool) {
+    for i, peer := range p.peers {
+        if peer.Address == peerAddress {
+            if successful {
+                p.peers[i].Reputation++
+            } else {
+                p.peers[i].Reputation--
+            }
+
+            // Jika reputasi terlalu rendah, hapus peer dari daftar
+            if p.peers[i].Reputation < 0 {
+                p.RemovePeer(peerAddress)
+            }
+            break
+        }
+    }
+}
+```
+
 6. Tidak menyimpan data sensitif dalam blockchain
+
+Data dalam blockchain disimpan secara distribusi di semua node, sehinmgga, siapaun yang menjadi node, dapat mengakses dan membaca data tersebut. Untuk menghindari penyerang menggunakan blockchain untuk mengakses informasi-informasi konfidensial, pastikan kita tidak menyimpan data sensitif apapun dalam jaringan blockchain. 
+
+Jika aplikasi yang kita buat sangat membutuhkan data-data sensitif, pertimbangkan untuk menyimpan data secara hybrid, dimana data-data yang umum, bisa disimpan terdistribusi di blockchain, sementara data-data sensitif disimpan secara terpusat di database tertentu yang penyimpanan-nya tetap harus di-encrypt.
+
+Dalam konteks aplikasi sistem pemilu yang menjadi studi kasus kita, data-data pemilih termasuk dalam kategori data sensitif. Misalnya NIK, Nama, Tanggal Lahir, dan sidik jari, bisa menjadi target para penyerang untuk mengumpulkan informasi, yang nantinya akan bisa digunakan dalam serangan phising. Data-data pemilih ini dibutuhkan untuk memverifikasi apakah pemilih yang melakukan vote valid atau tidak, sehingga kita akan menyimpannya dalam database terpisah (tersentralisasi).
+
 7. Penerapan Kriptografi
+
+Penerapan kriptografi diperlukan untuk mencegah penyerang mengakses data di tengah jalan (man in the middle). Pembahasan kriptografi lebih lanjut, akan kita bahas di sub bab selanjutnya, yaitu sub bab 10.1.3.
+
 8. Penggunaan Tanda Tangan Digital
+
+Penggunaan tanda tangan digital sangat bermanfaat dalam prose peer verification. Ini juga bisa dikombinasikan dengan whiotelist IP untuk mendapatkan peer yang jauh lebih terverifikasi. Pembahasan tanda tangan digital lebih lanjut dapat dilihat di sub bab 10.1.3 
+
 9. Audit Keamanan
+
+Audit keamanan harus terus menerus dilakukan untuk memastika jaringan blockchain yang kita buat aman. Terutama untuk memastikan smart contract yang dibuat tidak memiliki celah keamanan yang dapat dieksplotasi oleh penyerang. Melakukan audit rutin pada kode smart contracts dan infrastruktur blockchain penting dilakukan untuk mengidentifikasi dan memperbaiki potensi kerentanan.
+
 10. Edukasi Pengguna
+
+Untuk mencegah phising dan penipuan, tidak cukup hanya dengan sistem dan jaringan blockchain yang aman. Kita juga harus memberikan edukasi ke pengguna aplikasi blockchain. Bagaimana pun, praktek keamanan dimulai dari pengguna yang aware terhadap keamanan data individu. Penting untuk memberikan informasi dan pelatihan kepada pengguna tentang cara mengidentifikasi dan menghindari ancaman, seperti phishing dan penipuan.
 
 ### 10.1.3 Mekanisme Kriptografi dalam Keamanan Blockchain
 Pentingnya keamanan di jaringan blockchain tidak dapat diremehkan, mengingat banyaknya aplikasi yang dibangun di atas teknologi ini, mulai dari cryptocurrency hingga sistem voting digital. Di bagian selanjutnya, kita akan mendalami mekanisme kriptografi yang lebih mendalam, serta bagaimana mereka mendukung keamanan transaksi dan integritas data dalam jaringan blockchain. Kriptografi adalah pilar utama dalam menjaga keamanan jaringan blockchain. Terdapat beberapa mekanisme kriptografi yang berperan penting, antara lain:
@@ -138,21 +218,8 @@ Tanda tangan digital merupakan metode yang memastikan otentikasi dan integritas 
 Selain kriptografi, mekanisme konsensus memainkan peran penting dalam keamanan blockchain. Seperti yang telah disebutkan, Proof of Work (PoW) adalah salah satu metode yang paling umum digunakan untuk mencegah serangan. Dengan mengharuskan peserta jaringan (penambang) untuk memecahkan teka-teki matematis yang kompleks sebelum menambahkan blok baru ke dalam rantai, PoW menciptakan penghalang yang signifikan bagi penyerang. Namun, PoW juga memiliki kelemahan, seperti konsumsi energi yang tinggi, yang memicu pengembangan alternatif seperti Proof of Stake (PoS), di mana peserta harus mengunci sejumlah cryptocurrency sebagai jaminan untuk dapat berpartisipasi dalam proses verifikasi.
 
 
-### 10.1.4 Praktik Terbaik
-Untuk menjaga keamanan jaringan blockchain, beberapa praktik terbaik dapat diadopsi:
+## 10.1.4 Kesimpulan
 
-**Audit Keamanan:**
-
-Melakukan audit rutin pada kode smart contracts dan infrastruktur blockchain untuk mengidentifikasi dan memperbaiki potensi kerentanan.
-
-**Edukasi Pengguna:**
-
-Memberikan informasi dan pelatihan kepada pengguna tentang cara mengidentifikasi dan menghindari ancaman, seperti phishing dan penipuan.
-
-**Pengembangan Protokol yang Kuat:**
-
-Memastikan bahwa protokol blockchain dirancang dengan mempertimbangkan keamanan dari awal, termasuk mekanisme konsensus yang efisien dan perlindungan terhadap serangan.
-
-Keamanan dalam jaringan blockchain adalah topik yang kompleks dan dinamis, yang terus berkembang seiring dengan evolusi teknologi dan munculnya ancaman baru. Melalui pemahaman mendalam tentang mekanisme kriptografi, ancaman yang ada, dan penerapan praktik terbaik, kita dapat memastikan bahwa sistem blockchain tetap aman, dapat diandalkan, dan siap untuk digunakan dalam berbagai aplikasi di masa depan. Kepercayaan dalam teknologi ini sangat tergantung pada upaya kolektif untuk menjaga keamanan dan integritasnya.
+Penting untuk memastikan bahwa protokol blockchain dirancang dengan mempertimbangkan keamanan dari awal, termasuk mekanisme konsensus yang efisien dan perlindungan terhadap serangan. Keamanan dalam jaringan blockchain adalah topik yang kompleks dan dinamis, yang terus berkembang seiring dengan evolusi teknologi dan munculnya ancaman baru. Melalui pemahaman mendalam tentang mekanisme kriptografi, ancaman yang ada, dan penerapan praktik terbaik, kita dapat memastikan bahwa sistem blockchain tetap aman, dapat diandalkan, dan siap untuk digunakan dalam berbagai aplikasi di masa depan. Kepercayaan dalam teknologi ini sangat tergantung pada upaya kolektif untuk menjaga keamanan dan integritasnya.
 
 ## 10.2 Skalabilitas

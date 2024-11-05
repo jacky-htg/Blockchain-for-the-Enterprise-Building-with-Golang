@@ -294,7 +294,11 @@ func DecryptAES(cryptoText, key string) (string, error) {
 
 2. Menggunakan Fungsi Enkripsi pada Data Sensitif di Blockchain
    
-Misalnya, dalam kasus pemilihan umum berbasis blockchain, kita bisa mengenkripsi data pemilih atau voting saat dikirim antar-node. Misalkan pada Fungsi Vote, di bagian pengiriman vote, kita bisa mengenkripsi data pemilih sebelum mengirimkannya ke node lain.
+Misalnya, dalam kasus pemilihan umum berbasis blockchain, kita bisa mengenkripsi data pemilih atau voting saat dikirim antar-node. 
+
+**Enkrpsi Vote di Node Pengirim**
+
+Misalkan pada fungsi Vote, di bagian pengiriman vote, kita bisa mengenkripsi data pemilih sebelum mengirimkannya ke node lain.
 
 ```go
 package peer

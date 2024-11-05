@@ -373,6 +373,275 @@ Pastikan kunci ini dikelola dengan baik, karena siapapun yang memiliki akses ke 
 
 Tanda tangan digital merupakan metode yang memastikan otentikasi dan integritas pesan. Dalam blockchain, setiap transaksi dapat ditandatangani secara digital menggunakan kunci pribadi pengirim. Tanda tangan ini kemudian dapat diverifikasi oleh penerima menggunakan kunci publik pengirim. Dengan cara ini, penerima dapat yakin bahwa transaksi tersebut benar-benar dilakukan oleh pengirim yang sah dan tidak telah dimodifikasi.
 
+Kita bisa menggunakan algoritma ECDSA (Elliptic Curve Digital Signature Algorithm) di Golang untuk membuat tanda tangan digital pada data atau transaksi yang ingin diverifikasi antar node.
+
+1. Menggunakan Paket crypto/ecdsa dan crypto/elliptic
+
+Golang menyediakan pustaka untuk membuat dan memverifikasi tanda tangan digital. Langkah pertama adalah membuat pasangan kunci publik dan privat, lalu menggunakan kunci privat untuk menandatangani data, dan kunci publik untuk verifikasi.
+
+**Menghasilkan Kunci Privat dan Kunci Publik ECDSA**
+
+Berikut adalah fungsi untuk membuat pasangan kunci ECDSA:
+
+```go
+package encryption
+
+import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
+	"fmt"
+)
+
+// GenerateKeys menghasilkan pasangan kunci ECDSA.
+func GenerateKeys() (*ecdsa.PrivateKey, error) {
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	return privateKey, nil
+}
+```
+
+2. Membuat dan Memverifikasi Tanda Tangan Digital
+
+Selanjutnya, kita akan membuat fungsi untuk menandatangani data dengan kunci privat dan fungsi lain untuk memverifikasi tanda tangan dengan kunci publik.
+
+**Fungsi untuk Menandatangani Data**
+
+Tanda tangan digital dibuat dengan hash data terlebih dahulu, lalu tanda tangan diterapkan pada hash tersebut. Berikut adalah fungsi SignData untuk menandatangani data:
+
+```go
+// SignData menandatangani pesan menggunakan kunci privat ECDSA.
+func SignData(privateKey *ecdsa.PrivateKey, message string) (r, s []byte, err error) {
+	// Hash pesan menggunakan SHA-256
+	hash := sha256.Sum256([]byte(message))
+
+	// Tanda tangani hash menggunakan kunci privat
+	rInt, sInt, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Konversi tanda tangan menjadi byte array
+	r = rInt.Bytes()
+	s = sInt.Bytes()
+	return r, s, nil
+}
+```
+
+**Fungsi untuk Verifikasi Tanda Tangan**
+
+Setelah tanda tangan dibuat, kita bisa menggunakan kunci publik untuk memverifikasi tanda tangan pada data yang diterima.
+
+```go
+// VerifySignature memverifikasi tanda tangan digital menggunakan kunci publik.
+func VerifySignature(publicKey *ecdsa.PublicKey, message string, r, s []byte) bool {
+	// Hash pesan yang diterima
+	hash := sha256.Sum256([]byte(message))
+
+	// Konversi r dan s kembali menjadi big.Int
+	var rInt, sInt big.Int
+	rInt.SetBytes(r)
+	sInt.SetBytes(s)
+
+	// Verifikasi tanda tangan
+	return ecdsa.Verify(publicKey, hash[:], &rInt, &sInt)
+}
+```
+
+3. Implementasi pada Aplikasi Blockchain
+
+Misalkan kita ingin menandatangani data voting atau transaksi. Berikut ini cara untuk menggunakan fungsi-fungsi di atas dalam pengiriman dan verifikasi transaksi antar-node.
+
+**Mengirim Data dengan Tanda Tangan Digital**
+
+Saat mengirim data, node akan menandatangani data tersebut dengan kunci privatnya.
+
+```go
+package peer
+
+import (
+	"encryption"
+	"fmt"
+	"net"
+)
+
+// SendSignedVote mengirimkan vote dengan tanda tangan digital ke peer lain.
+func (p2p *P2PNetwork) SendSignedVote(voterID, candidateID string, privateKey *ecdsa.PrivateKey) {
+	message := voterID + ":" + candidateID
+
+	// Buat tanda tangan digital untuk pesan
+	r, s, err := encryption.SignData(privateKey, message)
+	if err != nil {
+		fmt.Println("Error signing vote:", err)
+		return
+	}
+
+	// Kirimkan data beserta tanda tangan ke node lain
+	for _, peer := range p2p.peers {
+		conn, err := net.Dial("tcp", peer.Address)
+		if err != nil {
+			fmt.Println("Error connecting to peer:", err)
+			continue
+		}
+		defer conn.Close()
+
+		// Format pesan sebagai string atau JSON
+		signatureMessage := fmt.Sprintf("vote:%s:%x:%x\n", message, r, s)
+		fmt.Fprintf(conn, signatureMessage)
+	}
+}
+```
+
+**Menerima dan Memverifikasi Tanda Tangan Digital di Node Penerima**
+
+Ketika node menerima data, node bisa menggunakan kunci publik untuk memverifikasi tanda tangan sebelum memproses data tersebut.
+
+```go
+func (p2p *P2PNetwork) ReceiveAndVerifySignedVote(message, rStr, sStr string, publicKey *ecdsa.PublicKey) {
+	// Konversi r dan s dari hexadecimal string ke byte array
+	r, _ := hex.DecodeString(rStr)
+	s, _ := hex.DecodeString(sStr)
+
+	// Verifikasi tanda tangan
+	isValid := encryption.VerifySignature(publicKey, message, r, s)
+	if isValid {
+		// Proses vote jika valid
+		voteData := strings.Split(message, ":")
+		voterID, candidateID := voteData[0], voteData[1]
+		fmt.Printf("Received valid vote from %s for candidate %s\n", voterID, candidateID)
+	} else {
+		fmt.Println("Received invalid signature for vote.")
+	}
+}
+```
+
+4. Mengonfigurasi Kunci Publik dan Kunci Privat
+
+Kunci publik dan kunci privat dapat dihasilkan untuk setiap node, lalu kunci publik dapat dibagikan ke node lain untuk memverifikasi tanda tangan.
+
+```go
+func main() {
+	// Inisialisasi pasangan kunci untuk node
+	privateKey, err := encryption.GenerateKeys()
+	if err != nil {
+		fmt.Println("Error generating keys:", err)
+		return
+	}
+	publicKey := &privateKey.PublicKey
+
+	// Mulai node dan berikan kunci publik untuk verifikasi
+	p2p := peer.NewP2PNetwork("localhost:4000", "localhost:3000")
+	p2p.PublicKey = publicKey // next publicKey bisa dibroadcast ke seluruh peer
+
+	// Node dapat menggunakan privateKey untuk menandatangani data
+}
+```
+
+Kode di atas menggenerate kunci privat setiap kali node dinyalakan. Ini bukanlah praktejk yang baik. untuk kestabilan sistem, masing-masing node seharusnya menjaga private key yang dihasilkan agar bisa digunakan kembali ketika direstart untuk memastikan konsistensi tanda tangan pada jaringan p2p.
+
+Berikut perubahan kode untuk memanga tanda tangan digital yang lebih proper.
+
+1. Menyimpan Persistent Key untuk setiap Node
+
+Untuk menghindari pembuatan key baru setiap kali restart, kita dapat menyimpan private dan public key di file local. Saat startup, node akan memngcek apakah key ada atau tidak. Jika tidak, node akan membnuatnya, tapi jika ada, node akan me-load key tersebut.
+
+Berikut contoh implmentasinya:
+
+```go
+package main
+
+import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
+	"fmt"
+	"os"
+)
+
+// LoadOrCreateKeyPair loads an existing key pair or creates a new one if it doesn't exist
+func LoadOrCreateKeyPair(filename string) (*ecdsa.PrivateKey, error) {
+	// Check if the file exists
+	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+		// If not, create a new private key
+		fmt.Println("No key found. Generating a new key pair...")
+		privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+
+		// Save the private key to a file
+		err = savePrivateKey(filename, privateKey)
+		if err != nil {
+			return nil, err
+		}
+		return privateKey, nil
+	}
+
+	// Load the existing private key
+	privateKey, err := loadPrivateKey(filename)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("Loaded existing key pair.")
+	return privateKey, nil
+}
+
+// savePrivateKey saves a private key to a PEM file
+func savePrivateKey(filename string, privateKey *ecdsa.PrivateKey) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	privateKeyBytes, err := x509.MarshalECPrivateKey(privateKey)
+	if err != nil {
+		return err
+	}
+
+	// Encode as PEM
+	pemBlock := &pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	}
+	return pem.Encode(file, pemBlock)
+}
+
+// loadPrivateKey loads a private key from a PEM file
+func loadPrivateKey(filename string) (*ecdsa.PrivateKey, error) {
+	file, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode PEM
+	block, _ := pem.Decode(file)
+	if block == nil || block.Type != "EC PRIVATE KEY" {
+		return nil, errors.New("failed to decode PEM block containing private key")
+	}
+
+	// Parse the EC private key
+	return x509.ParseECPrivateKey(block.Bytes)
+}
+```
+
+2. Mengelola Public Keys Antar Peer
+
+Setiap node seharunya punya mekanisme untuk menyimpan dan mengupdate key untuk semua peer yang terconnect dengannya. Opsi yang bisa ditempuh anatara lain:
+
+- **Broadcasting Public Key:** Ketika sebuah node bergabung dengan jariangan, dia akan membroadcast public key yang dimilikinya. Peer lain seharusnya menyimpan public key tersebut bersamaan dengan alamat node tersebut.
+- **Pendekatan Bootstrap Server:** Jika kita memilih untuk mengelola peer dengan bootstrap serve, ini juga bisa digunakan untuk mengelola public key.
+
+Kita sudah mengimplmentasikan server bootstrap peer, jadi mestinya kita akan memodifikasi agar support mengelola public key. 
+- Pertama, peer yang melakukan registrasi juga mengirim public key-nya (bukan hanya address saja).
+- server bootstrap ketika berhasil mendaftarkan peer, maka akan membroadcast peer tersebut ke seluruh peer yang ada, yang dibroadcast bukan hanya address saja, tapi juga ditambahkan dengan public key.
+- Setiap node existing akan menerima peer yang baru join, dan menabahkan peer tersebut beserta dengan informasi public key-nya.
+
 #### 10.1.3.4 Mekanisme Konsensus
 
 Selain kriptografi, mekanisme konsensus memainkan peran penting dalam keamanan blockchain. Seperti yang telah disebutkan, Proof of Work (PoW) adalah salah satu metode yang paling umum digunakan untuk mencegah serangan. Dengan mengharuskan peserta jaringan (penambang) untuk memecahkan teka-teki matematis yang kompleks sebelum menambahkan blok baru ke dalam rantai, PoW menciptakan penghalang yang signifikan bagi penyerang. Namun, PoW juga memiliki kelemahan, seperti konsumsi energi yang tinggi, yang memicu pengembangan alternatif seperti Proof of Stake (PoS), di mana peserta harus mengunci sejumlah cryptocurrency sebagai jaminan untuk dapat berpartisipasi dalam proses verifikasi. Konsensus POW sudah kita implmentasikan pada Bab 6.

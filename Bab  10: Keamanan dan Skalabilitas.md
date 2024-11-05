@@ -49,10 +49,17 @@ Pengguna blockchain sering menjadi target phishing yang dirancang untuk mencuri 
 ### 10.1.2 Solusi Keamanan
 
 1. Penerapan Rate Limiting
-2. Verifikasi Peer
-3. Deteksi dan Penanganan Node Malicious
+2. Penerapan Hashing pada Blockchain
+3. Penerapan Konsensus
+4. Verifikasi Peer
+5. Deteksi dan Penanganan Node Malicious
+6. Tidak menyimpan data sensitif dalam blockchain
+7. Penerapan Kriptografi
+8. Penggunaan Tanda Tangan Digital
+9. Audit Keamanan
+10. Edukasi Pengguna
 
-## 10.2 Mekanisme Kriptografi dalam Keamanan Blockchain
+### 10.1.3 Mekanisme Kriptografi dalam Keamanan Blockchain
 Pentingnya keamanan di jaringan blockchain tidak dapat diremehkan, mengingat banyaknya aplikasi yang dibangun di atas teknologi ini, mulai dari cryptocurrency hingga sistem voting digital. Di bagian selanjutnya, kita akan mendalami mekanisme kriptografi yang lebih mendalam, serta bagaimana mereka mendukung keamanan transaksi dan integritas data dalam jaringan blockchain. Kriptografi adalah pilar utama dalam menjaga keamanan jaringan blockchain. Terdapat beberapa mekanisme kriptografi yang berperan penting, antara lain:
 
 **Hashing:**
@@ -72,7 +79,7 @@ Tanda tangan digital merupakan metode yang memastikan otentikasi dan integritas 
 Selain kriptografi, mekanisme konsensus memainkan peran penting dalam keamanan blockchain. Seperti yang telah disebutkan, Proof of Work (PoW) adalah salah satu metode yang paling umum digunakan untuk mencegah serangan. Dengan mengharuskan peserta jaringan (penambang) untuk memecahkan teka-teki matematis yang kompleks sebelum menambahkan blok baru ke dalam rantai, PoW menciptakan penghalang yang signifikan bagi penyerang. Namun, PoW juga memiliki kelemahan, seperti konsumsi energi yang tinggi, yang memicu pengembangan alternatif seperti Proof of Stake (PoS), di mana peserta harus mengunci sejumlah cryptocurrency sebagai jaminan untuk dapat berpartisipasi dalam proses verifikasi.
 
 
-## 10.3 Menghadapi Ancaman: Praktik Terbaik
+### 10.1.4 Praktik Terbaik
 Untuk menjaga keamanan jaringan blockchain, beberapa praktik terbaik dapat diadopsi:
 
 **Audit Keamanan:**

@@ -693,3 +693,39 @@ func main() {
 ```
 
 Dalam kode ini, kita membagi node di jaringan menjadi shard yang lebih kecil, sehingga setiap node hanya perlu mengelola komunikasi dalam shard-nya. Pendekatan ini membantu meringankan beban jaringan dengan membatasi interaksi langsung antar node, yang dapat meningkatkan skalabilitas dan efisiensi keseluruhan.
+
+Jika dijalankan, kode di atas akan menghasilkan 3 shard, dimana masing2 shard terdiri dari 2 nodes:
+
+```bash
+Shard 1: [node1 node2]
+Shard 2: [node3 node4]
+Shard 3: [node5 node6]
+```
+
+Dalam pendekatan sharding, biasanya setiap shard bekerja secara relatif independen untuk mencapai konsensus di dalam shard-nya masing-masing. Jika konsensus harus dicapai di seluruh jaringan, shard akan saling berkomunikasi melalui node penghubung atau mekanisme lintas-shard. 
+
+Ini bisa dicapai dengan memilih leader node di masing-masing shard. Sehingga ketika dibutuhkan untuk berkomunikasi lintas shard, cukup berkomunikasi dengan masing-masing leader node.
+
+**Overlapping Sharding**
+
+Teknik lain adalah dengan membuat overlapping sharding. Pola overlapping sharding di mana setiap shard beririsan memungkinkan untuk meningkatkan keterhubungan dan memastikan aliran informasi antara shard yang berbeda.
+
+Dengan pola seperti:
+
+```bash
+Shard 1: node1 + node2
+Shard 2: node2 + node3
+Shard 3: node3 + node4
+Shard 4: node4 + node5
+Shard 5: node5 + node6
+Shard 6: node6 + node1
+```
+
+setiap node akan menjadi bagian dari dua shard yang berbeda. Ini dikenal sebagai overlapping sharding dan dapat membantu menjembatani komunikasi antar shard, memungkinkan informasi atau data dari satu shard dapat diteruskan melalui node yang sama ke shard berikutnya.
+
+Dengan pendekatan overlapping sharding, ada beberapa keuntungan:
+
+- Redundansi dan Keterhubungan: Karena setiap node terhubung dengan dua shard, data atau transaksi yang terjadi di satu shard dapat menyebar melalui node yang sama ke shard lain, meningkatkan ketahanan jaringan.
+- Pengelolaan Konsensus Lintas Shard: Konsensus antar-shard dapat dicapai dengan mengirimkan keputusan yang dicapai di satu shard ke shard yang berdekatan. Ini memungkinkan jaringan mencapai konsensus secara global meskipun setiap shard bekerja secara semi-independen.
+
+Untuk penerapan konsensus di antara shard, kita dapat menggunakan metode "relay nodes" atau "leader nodes" di setiap shard. Misalnya, node yang beririsan (seperti node2 yang ada di Shard 1 dan Shard 2) dapat berfungsi sebagai perantara, menyampaikan informasi penting ke shard tetangga untuk memastikan sinkronisasi atau pembaruan transaksi.

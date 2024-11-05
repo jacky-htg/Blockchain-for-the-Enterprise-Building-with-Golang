@@ -7,10 +7,48 @@ Keamanan dalam jaringan blockchain merupakan aspek krusial yang memastikan integ
 
 Salah satu fondasi utama keamanan blockchain terletak pada penggunaan algoritma kriptografi yang kuat, seperti hashing dan enkripsi. Algoritma hashing, misalnya, tidak hanya digunakan untuk menyimpan informasi dengan cara yang tidak dapat diubah, tetapi juga untuk memastikan bahwa setiap perubahan pada data akan mudah terdeteksi. Dengan demikian, setiap blok yang ditambahkan ke dalam rantai tidak hanya terhubung secara kronologis, tetapi juga aman dari modifikasi yang tidak sah. Sementara itu, mekanisme konsensus, seperti Proof of Work, berfungsi untuk mencegah penyerang dari mengambil alih jaringan dengan cara memastikan bahwa setiap transaksi diverifikasi oleh mayoritas peserta sebelum dicatat.
 
-Pentingnya keamanan di jaringan blockchain tidak dapat diremehkan, mengingat banyaknya aplikasi yang dibangun di atas teknologi ini, mulai dari cryptocurrency hingga sistem voting digital. Di bagian selanjutnya, kita akan mendalami mekanisme kriptografi yang lebih mendalam, serta bagaimana mereka mendukung keamanan transaksi dan integritas data dalam jaringan blockchain.
+### 10.1.1 Ancaman dan Tantangan dalam Keamanan Blockchain
+Walaupun teknologi blockchain menawarkan tingkat keamanan yang tinggi, masih ada beberapa ancaman dan tantangan yang perlu diwaspadai:
+
+**1. Serangan DDoS (Distributed Denial of Service)**
+Jaringan blockchain dapat menjadi target serangan DDoS, di mana penyerang berusaha membuat jaringan tidak dapat diakses dengan membanjiri node dengan lalu lintas yang berlebihan. Hal ini dapat mengganggu operasi normal jaringan dan menghambat transaksi.
+
+**2. Keamanan Peer Discovery**
+Proses discovery peer yang tidak aman dapat menyebabkan penyerang memperkenalkan node palsu ke dalam jaringan. Node palsu ini dapat berusaha untuk mengumpulkan informasi tentang jaringan atau melakukan serangan lebih lanjut.
+
+**3. Node Malicious**
+Jika keamanan peer discovery dapat ditembus, langkah selanjutnya adalah serangan node malicious. Node dalam jaringan blockchain tidak selalu dapat dipercaya. Node yang berperilaku jahat dapat menyebarkan informasi yang salah atau berusaha memanipulasi konsensus. Ini dapat memengaruhi proses voting dan hasil pemilihan dalam aplikasi voting berbasis blockchain.
+
+**4. Serangan Sybil**
+Jika serangan node malicious berhasil, bisa dilanjutkan dengan serangan sybil, ini terjadi ketika satu entitas (penyerang) menciptakan banyak identitas atau node palsu di jaringan untuk mendapatkan pengaruh yang tidak seimbang. Tujuannya adalah untuk membanjiri jaringan dengan identitas palsu dan memanipulasi interaksi atau pengambilan keputusan. Dalam jaringan blockchain atau peer-to-peer (P2P) lainnya, serangan ini bisa mempengaruhi:
+
+- Proses validasi transaksi (misalnya, menolak transaksi tertentu).
+- Distribusi informasi (mengontrol penyebaran atau pembaruan data di jaringan).
+- Pengambilan keputusan (menggunakan jumlah node palsu untuk mempengaruhi voting atau konsensus dalam jaringan).
+
+**5. Serangan 51%**
+Ini adalah serangan tindak lanjut ketika serangan sybil berhasil. Dalam serangan ini, sekelompok penyerang menguasai lebih dari 50% kekuatan komputasi jaringan. Hal ini memungkinkan mereka untuk memanipulasi transaksi, mencegah transaksi baru dari dikonfirmasi, dan bahkan membalikkan transaksi yang telah dilakukan.
+
+**6. Double Spending**
+
+Ini adalah masalah yang timbul ketika seorang pengguna mencoba untuk menghabiskan aset digital yang sama lebih dari sekali. Walaupun mekanisme konsensus bertujuan untuk mencegah ini, serangan yang cerdik dapat mengekploitasi kelemahan dalam sistem untuk melakukan double spending. Apalagi jika serangan 51% sudah berhasil, akan sangat mudah melakukan double spending.
+
+**7. Eksploitasi Smart Contracts**
+
+Smart contracts, meskipun memberikan fungsionalitas yang canggih, dapat memiliki celah keamanan yang dapat dieksploitasi. Bug dalam kode dapat dimanfaatkan oleh penyerang untuk mencuri aset atau merusak fungsi kontrak.
+
+**8. Phishing dan Penipuan**
+
+Pengguna blockchain sering menjadi target phishing yang dirancang untuk mencuri informasi pribadi atau akses ke dompet digital. Edukasi pengguna dan praktik keamanan yang baik sangat penting untuk mengurangi risiko ini.
+
+### 10.1.2 Solusi Keamanan
+
+1. Penerapan Rate Limiting
+2. Verifikasi Peer
+3. Deteksi dan Penanganan Node Malicious
 
 ## 10.2 Mekanisme Kriptografi dalam Keamanan Blockchain
-Kriptografi adalah pilar utama dalam menjaga keamanan jaringan blockchain. Terdapat beberapa mekanisme kriptografi yang berperan penting, antara lain:
+Pentingnya keamanan di jaringan blockchain tidak dapat diremehkan, mengingat banyaknya aplikasi yang dibangun di atas teknologi ini, mulai dari cryptocurrency hingga sistem voting digital. Di bagian selanjutnya, kita akan mendalami mekanisme kriptografi yang lebih mendalam, serta bagaimana mereka mendukung keamanan transaksi dan integritas data dalam jaringan blockchain. Kriptografi adalah pilar utama dalam menjaga keamanan jaringan blockchain. Terdapat beberapa mekanisme kriptografi yang berperan penting, antara lain:
 
 **Hashing:**
 
@@ -28,25 +66,8 @@ Tanda tangan digital merupakan metode yang memastikan otentikasi dan integritas 
 
 Selain kriptografi, mekanisme konsensus memainkan peran penting dalam keamanan blockchain. Seperti yang telah disebutkan, Proof of Work (PoW) adalah salah satu metode yang paling umum digunakan untuk mencegah serangan. Dengan mengharuskan peserta jaringan (penambang) untuk memecahkan teka-teki matematis yang kompleks sebelum menambahkan blok baru ke dalam rantai, PoW menciptakan penghalang yang signifikan bagi penyerang. Namun, PoW juga memiliki kelemahan, seperti konsumsi energi yang tinggi, yang memicu pengembangan alternatif seperti Proof of Stake (PoS), di mana peserta harus mengunci sejumlah cryptocurrency sebagai jaminan untuk dapat berpartisipasi dalam proses verifikasi.
 
-## 10.3 Ancaman dan Tantangan dalam Keamanan Blockchain
-Walaupun teknologi blockchain menawarkan tingkat keamanan yang tinggi, masih ada beberapa ancaman dan tantangan yang perlu diwaspadai:
 
-**Serangan 51%:**
-
-Dalam serangan ini, sekelompok penyerang menguasai lebih dari 50% kekuatan komputasi jaringan. Hal ini memungkinkan mereka untuk memanipulasi transaksi, mencegah transaksi baru dari dikonfirmasi, dan bahkan membalikkan transaksi yang telah dilakukan.
-
-**Double Spending:**
-
-Ini adalah masalah yang timbul ketika seorang pengguna mencoba untuk menghabiskan aset digital yang sama lebih dari sekali. Walaupun mekanisme konsensus bertujuan untuk mencegah ini, serangan yang cerdik dapat mengekploitasi kelemahan dalam sistem untuk melakukan double spending.
-
-**Eksploitasi Smart Contracts:**
-
-Smart contracts, meskipun memberikan fungsionalitas yang canggih, dapat memiliki celah keamanan yang dapat dieksploitasi. Bug dalam kode dapat dimanfaatkan oleh penyerang untuk mencuri aset atau merusak fungsi kontrak.
-Phishing dan Penipuan:
-
-Pengguna blockchain sering menjadi target phishing yang dirancang untuk mencuri informasi pribadi atau akses ke dompet digital. Edukasi pengguna dan praktik keamanan yang baik sangat penting untuk mengurangi risiko ini.
-
-## 10.4 Menghadapi Ancaman: Praktik Terbaik
+## 10.3 Menghadapi Ancaman: Praktik Terbaik
 Untuk menjaga keamanan jaringan blockchain, beberapa praktik terbaik dapat diadopsi:
 
 **Audit Keamanan:**

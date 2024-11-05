@@ -205,9 +205,165 @@ Pentingnya keamanan di jaringan blockchain tidak dapat diremehkan, mengingat ban
 
 Hashing adalah proses yang mengubah data menjadi string karakter tetap dengan panjang tertentu. Fungsi hash yang umum digunakan dalam blockchain adalah SHA-256. Fungsi ini memiliki sifat deterministik, artinya data yang sama akan selalu menghasilkan hash yang sama. Hal ini memudahkan untuk memverifikasi integritas data, karena perubahan sekecil apa pun pada input akan menghasilkan hash yang sangat berbeda. Dengan cara ini, jika ada upaya untuk memodifikasi blok yang telah dicatat, hash dari blok tersebut akan berubah, dan jaringan dapat mendeteksi adanya penipuan.
 
+Hashing sudha kita implmentasikan pada Bab 4. Contoh sederhanya-nya adalh seperti berikut:
+
+```go
+import (
+	"crypto/sha256"
+	"fmt"
+)
+
+func (b *Block) calculateHash() []byte {
+	record := fmt.Sprintf("%d%d%s%s", b.Index, b.Timestamp, b.Data.Data, b.PrevHash)
+	h := sha256.New()
+	h.Write([]byte(record))
+	hashed := h.Sum(nil)
+	return hashed
+}
+```
+
 **Enkripsi:**
 
-Enkripsi digunakan untuk menjaga kerahasiaan data. Dalam konteks blockchain, data yang sensitif, seperti informasi identitas pengguna, dapat dienkripsi untuk melindunginya dari akses yang tidak sah. Enkripsi kunci publik, seperti RSA, memungkinkan pengguna untuk berbagi informasi dengan aman tanpa perlu bertukar kunci rahasia sebelumnya. Hanya penerima yang memiliki kunci pribadi yang dapat mendekripsi pesan.
+Enkripsi digunakan untuk menjaga kerahasiaan data. Dalam konteks blockchain, data yang sensitif, seperti informasi identitas pengguna, dapat dienkripsi untuk melindunginya dari akses yang tidak sah. Enkripsi juga melindungi data agar tidak disadap oleh pihak ketiga di tengah perjalanan. Enkripsi kunci publik, seperti RSA, memungkinkan pengguna untuk berbagi informasi dengan aman tanpa perlu bertukar kunci rahasia sebelumnya. Hanya penerima yang memiliki kunci pribadi yang dapat mendekripsi pesan.
+
+Mengimplementasikan enkripsi di aplikasi blockchain dapat meningkatkan keamanan data yang ditransmisikan antar node dan disimpan dalam blok. Misalnya, kita bisa mengenkripsi data sensitif seperti identitas pemilih atau informasi voting agar hanya node yang berwenang yang bisa membacanya. Dalam hal ini, kita bisa menggunakan enkripsi simetris (AES) atau enkripsi asimetris (RSA).
+
+Berikut ini contoh kode implementasi enkripsi dan dekripsi menggunakan AES (Advanced Encryption Standard) di Golang, yang cocok untuk mengenkripsi data antar node atau data yang disimpan di blockchain.
+
+1. Menyiapkan Fungsi Enkripsi dan Dekripsi AES
+
+Kita mulai dengan membuat dua fungsi: satu untuk mengenkripsi dan satu lagi untuk mendekripsi. AES menggunakan kunci simetris, yang artinya satu kunci digunakan untuk kedua operasi.
+
+```go
+package encryption
+
+import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
+	"fmt"
+	"io"
+)
+
+// EncryptAES mengenkripsi teks dengan kunci AES.
+func EncryptAES(plainText, key string) (string, error) {
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+
+	cipherText := make([]byte, aes.BlockSize+len(plainText))
+	iv := cipherText[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return "", err
+	}
+
+	stream := cipher.NewCFBEncrypter(block, iv)
+	stream.XORKeyStream(cipherText[aes.BlockSize:], []byte(plainText))
+
+	// Mengembalikan teks terenkripsi dalam format Base64 untuk memudahkan transfer.
+	return base64.URLEncoding.EncodeToString(cipherText), nil
+}
+
+// DecryptAES mendekripsi teks terenkripsi dengan kunci AES.
+func DecryptAES(cryptoText, key string) (string, error) {
+	cipherText, err := base64.URLEncoding.DecodeString(cryptoText)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+
+	if len(cipherText) < aes.BlockSize {
+		return "", fmt.Errorf("cipherText terlalu pendek")
+	}
+
+	iv := cipherText[:aes.BlockSize]
+	cipherText = cipherText[aes.BlockSize:]
+
+	stream := cipher.NewCFBDecrypter(block, iv)
+	stream.XORKeyStream(cipherText, cipherText)
+
+	return string(cipherText), nil
+}
+```
+
+2. Menggunakan Fungsi Enkripsi pada Data Sensitif di Blockchain
+   
+Misalnya, dalam kasus pemilihan umum berbasis blockchain, kita bisa mengenkripsi data pemilih atau voting saat dikirim antar-node. Misalkan pada Fungsi Vote, di bagian pengiriman vote, kita bisa mengenkripsi data pemilih sebelum mengirimkannya ke node lain.
+
+```go
+package peer
+
+import (
+	"encryption"
+	"fmt"
+	"net"
+)
+
+// SendEncryptedVote mengenkripsi dan mengirim vote ke peer lain.
+func (p2p *P2PNetwork) SendEncryptedVote(voterID, candidateID, encryptionKey string) {
+	plainVote := voterID + ":" + candidateID
+
+	encryptedVote, err := encryption.EncryptAES(plainVote, encryptionKey)
+	if err != nil {
+		fmt.Println("Error encrypting vote:", err)
+		return
+	}
+
+	// Simpan atau kirim encryptedVote ke node lainnya
+	for _, peer := range p2p.peers {
+		conn, err := net.Dial("tcp", peer.Address)
+		if err != nil {
+			fmt.Println("Error connecting to peer:", err)
+			continue
+		}
+		defer conn.Close()
+
+		fmt.Fprintf(conn, "vote:%s\n", encryptedVote)
+	}
+}
+```
+
+**Dekripsi Vote di Node Penerima**
+
+Di sisi penerima, kita bisa mendekripsi data saat menerima vote dari peer lain.
+
+```go
+func (p2p *P2PNetwork) ReceiveEncryptedVote(encryptedVote, encryptionKey string) {
+	plainVote, err := encryption.DecryptAES(encryptedVote, encryptionKey)
+	if err != nil {
+		fmt.Println("Error decrypting vote:", err)
+		return
+	}
+
+	// Parsing vote menjadi voterID dan candidateID setelah dekripsi
+	voteData := strings.Split(plainVote, ":")
+	if len(voteData) != 2 {
+		fmt.Println("Invalid vote data format")
+		return
+	}
+	voterID, candidateID := voteData[0], voteData[1]
+
+	fmt.Printf("Received vote from %s for candidate %s\n", voterID, candidateID)
+}
+```
+
+3. Mengonfigurasi Kunci Enkripsi
+
+AES membutuhkan kunci dengan panjang spesifik, biasanya 16, 24, atau 32 byte. Kunci ini bisa disimpan dalam variabel lingkungan atau file konfigurasi agar tetap aman.
+
+```go
+// Contoh Kunci AES dengan panjang 32 byte (256 bit)
+const encryptionKey = "thisis32bitlongpassphraseimusing!"
+```
+
+Pastikan kunci ini dikelola dengan baik, karena siapapun yang memiliki akses ke kunci bisa mengenkripsi dan mendekripsi pesan.
+
 
 **Tanda Tangan Digital:**
 
@@ -215,7 +371,7 @@ Tanda tangan digital merupakan metode yang memastikan otentikasi dan integritas 
 
 **Mekanisme Konsensus:**
 
-Selain kriptografi, mekanisme konsensus memainkan peran penting dalam keamanan blockchain. Seperti yang telah disebutkan, Proof of Work (PoW) adalah salah satu metode yang paling umum digunakan untuk mencegah serangan. Dengan mengharuskan peserta jaringan (penambang) untuk memecahkan teka-teki matematis yang kompleks sebelum menambahkan blok baru ke dalam rantai, PoW menciptakan penghalang yang signifikan bagi penyerang. Namun, PoW juga memiliki kelemahan, seperti konsumsi energi yang tinggi, yang memicu pengembangan alternatif seperti Proof of Stake (PoS), di mana peserta harus mengunci sejumlah cryptocurrency sebagai jaminan untuk dapat berpartisipasi dalam proses verifikasi.
+Selain kriptografi, mekanisme konsensus memainkan peran penting dalam keamanan blockchain. Seperti yang telah disebutkan, Proof of Work (PoW) adalah salah satu metode yang paling umum digunakan untuk mencegah serangan. Dengan mengharuskan peserta jaringan (penambang) untuk memecahkan teka-teki matematis yang kompleks sebelum menambahkan blok baru ke dalam rantai, PoW menciptakan penghalang yang signifikan bagi penyerang. Namun, PoW juga memiliki kelemahan, seperti konsumsi energi yang tinggi, yang memicu pengembangan alternatif seperti Proof of Stake (PoS), di mana peserta harus mengunci sejumlah cryptocurrency sebagai jaminan untuk dapat berpartisipasi dalam proses verifikasi. Konsensus POW sudah kita implmentasikan pada Bab 6.
 
 
 ## 10.1.4 Kesimpulan

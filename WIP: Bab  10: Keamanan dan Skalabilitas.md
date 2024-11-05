@@ -729,3 +729,82 @@ Dengan pendekatan overlapping sharding, ada beberapa keuntungan:
 - Pengelolaan Konsensus Lintas Shard: Konsensus antar-shard dapat dicapai dengan mengirimkan keputusan yang dicapai di satu shard ke shard yang berdekatan. Ini memungkinkan jaringan mencapai konsensus secara global meskipun setiap shard bekerja secara semi-independen.
 
 Untuk penerapan konsensus di antara shard, kita dapat menggunakan metode "relay nodes" atau "leader nodes" di setiap shard. Misalnya, node yang beririsan (seperti node2 yang ada di Shard 1 dan Shard 2) dapat berfungsi sebagai perantara, menyampaikan informasi penting ke shard tetangga untuk memastikan sinkronisasi atau pembaruan transaksi.
+
+**Contoh Kode: Pemilihan Leader dalam Setiap Shard**
+
+Agar setiap shard dapat berkomunikasi lebih efisien lintas shard, kita dapat memilih sebuah leader node dalam setiap shard. Pemilihan ini bisa disederhanakan dengan menggunakan node pertama dalam setiap shard sebagai leader, atau bisa lebih kompleks seperti menggunakan mekanisme voting antar node dalam shard.
+
+Misalnya, berikut adalah fungsi sederhana untuk menetapkan leader dalam setiap shard berdasarkan indeks node dalam daftar:
+
+```go
+// Struct untuk mewakili setiap shard beserta leader node-nya
+type Shard struct {
+	Nodes  []string // Daftar alamat node dalam satu shard
+	Leader string   // Alamat node yang berfungsi sebagai leader
+}
+
+// Fungsi untuk membagi node menjadi shard dan menetapkan leader
+func createShardsWithLeader(peers []string, shardSize int) []Shard {
+	var shards []Shard
+	for i := 0; i < len(peers); i += shardSize {
+		end := i + shardSize
+		if end > len(peers) {
+			end = len(peers)
+		}
+		shard := Shard{Nodes: peers[i:end], Leader: peers[i]} // Leader adalah node pertama
+		shards = append(shards, shard)
+	}
+	return shards
+}
+
+// Contoh penggunaan
+func main() {
+	peers := []string{"node1", "node2", "node3", "node4", "node5", "node6"}
+	shards := createShardsWithLeader(peers, 2) // Setiap shard memiliki 2 node
+	for i, shard := range shards {
+		fmt.Printf("Shard %d: Nodes: %v, Leader: %s\n", i+1, shard.Nodes, shard.Leader)
+	}
+}
+```
+
+Ketika dijalankan, kode ini akan mengalokasikan leader di setiap shard:
+
+```bash
+Shard 1: Nodes: [node1 node2], Leader: node1
+Shard 2: Nodes: [node3 node4], Leader: node3
+Shard 3: Nodes: [node5 node6], Leader: node5
+```
+
+**Implementasi Komunikasi Lintas Shard Melalui Node Relay**
+
+Dalam skema overlapping sharding, node yang terhubung dengan dua shard berbeda berfungsi sebagai relay, memastikan bahwa informasi dari satu shard dapat diteruskan ke shard tetangga. Berikut adalah contoh bagaimana node relay ini dapat diimplementasikan dalam jaringan:
+
+```go
+// Fungsi untuk mengirim pesan dari satu shard ke shard tetangga melalui node relay
+func sendCrossShardMessage(sender string, receiver string, message string) {
+	fmt.Printf("Node %s mengirim pesan ke node %s: %s\n", sender, receiver, message)
+}
+
+// Contoh komunikasi lintas shard melalui relay
+func main() {
+	shard1 := Shard{Nodes: []string{"node1", "node2"}, Leader: "node1"}
+	shard2 := Shard{Nodes: []string{"node2", "node3"}, Leader: "node2"}
+
+	// Mengirim pesan dari shard1 ke shard2 melalui node relay (node2)
+	sendCrossShardMessage(shard1.Leader, shard2.Leader, "Update dari Shard 1")
+}
+```
+
+Dalam kode ini, sendCrossShardMessage memungkinkan komunikasi lintas shard menggunakan node yang berada di kedua shard. Misalnya, node2 dapat bertindak sebagai relay antara shard1 dan shard2.
+
+**Catatan Keamanan dalam Overlapping Sharding**
+
+Teknik overlapping sharding membawa keuntungan dalam hal keterhubungan, tetapi juga menimbulkan beberapa risiko keamanan yang perlu diperhatikan, terutama terhadap node relay yang menghubungkan beberapa shard. Beberapa hal yang perlu diimplementasikan untuk meningkatkan keamanan adalah:
+
+- Verifikasi Konsensus: Node relay harus memverifikasi transaksi atau data dari shard lain sebelum meneruskannya. Ini mencegah node relay menyebarkan data yang tidak valid atau transaksi berbahaya ke shard lain.
+- Penggunaan Digital Signatures: Setiap komunikasi lintas shard sebaiknya disertai tanda tangan digital untuk memastikan integritas pesan, memastikan bahwa hanya node resmi dalam jaringan yang dapat mengirim pesan ke shard lain.
+- Pembatasan Akses: Membatasi node yang berfungsi sebagai relay berdasarkan kondisi atau aturan tertentu dapat membantu menjaga keamanan lintas shard. Misalnya, node relay dapat dipilih berdasarkan reputasi atau kepercayaan di jaringan.
+
+Pendekatan-pendekatan ini memastikan bahwa overlapping sharding tidak hanya meningkatkan efisiensi dan skalabilitas, tetapi juga tetap aman dan resilient terhadap serangan di lingkungan jaringan blockchain yang besar dan kompleks.
+
+Pembahasan di atas mencakup aspek dasar dari skalabilitas jaringan blockchain dan memberikan beberapa metode untuk mengatasi tantangan ini, terutama dengan konsep sharding dan overlapping sharding. Namun, jika ingin lebih terperinci, kita bisa mempelajari dan mengimplementasikan solusi-solusi spesifik lain seperti layer-2 solutions, penggunaan sidechains, dan optimasi protokol komunikasi antar-node.

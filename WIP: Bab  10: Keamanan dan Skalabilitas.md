@@ -652,3 +652,44 @@ Selain kriptografi, mekanisme konsensus memainkan peran penting dalam keamanan b
 Penting untuk memastikan bahwa protokol blockchain dirancang dengan mempertimbangkan keamanan dari awal, termasuk mekanisme konsensus yang efisien dan perlindungan terhadap serangan. Keamanan dalam jaringan blockchain adalah topik yang kompleks dan dinamis, yang terus berkembang seiring dengan evolusi teknologi dan munculnya ancaman baru. Melalui pemahaman mendalam tentang mekanisme kriptografi, ancaman yang ada, dan penerapan praktik terbaik, kita dapat memastikan bahwa sistem blockchain tetap aman, dapat diandalkan, dan siap untuk digunakan dalam berbagai aplikasi di masa depan. Kepercayaan dalam teknologi ini sangat tergantung pada upaya kolektif untuk menjaga keamanan dan integritasnya.
 
 ## 10.2 Skalabilitas
+
+Skalabilitas adalah salah satu tantangan utama dalam pengembangan jaringan blockchain, terutama ketika jumlah pengguna dan volume transaksi meningkat. Pada jaringan blockchain yang tidak dirancang untuk skala besar, pertumbuhan ini dapat menyebabkan perlambatan proses transaksi dan peningkatan biaya komputasi. Untuk mengatasi kendala ini, berbagai strategi dan arsitektur telah dikembangkan, mulai dari sharding dan sidechains hingga protokol konsensus yang lebih efisien. Sub bab ini akan menjelaskan beberapa pendekatan skalabilitas yang relevan dengan sistem P2P yang telah kita bangun, serta implementasi praktis yang dapat membantu jaringan mempertahankan kinerja optimal meskipun dihadapkan pada peningkatan jumlah node dan volume data.
+
+### 10.2.1 Skalabilitas Jaringan Blockchain
+Skalabilitas jaringan adalah kemampuan blockchain untuk mempertahankan kinerja yang stabil meskipun jumlah node dan volume transaksi meningkat. Dalam jaringan P2P blockchain, skalabilitas sangat penting untuk memastikan bahwa setiap node tetap dapat berkomunikasi dengan efisien dan memproses transaksi tanpa latensi yang berlebihan. Tanpa skalabilitas yang baik, jaringan dapat mengalami masalah seperti kemacetan, peningkatan latensi, atau bahkan kegagalan untuk mencapai konsensus.
+
+Ada beberapa pendekatan yang umum digunakan untuk meningkatkan skalabilitas jaringan blockchain. Salah satu pendekatan adalah sharding, di mana jaringan dibagi menjadi kelompok node yang lebih kecil atau "shard" untuk memproses transaksi secara paralel. Pendekatan lainnya melibatkan penggunaan layered architecture, seperti sidechains atau state channels, yang memungkinkan transaksi diproses di luar rantai utama (off-chain) untuk mengurangi beban jaringan utama. Penerapan metode-metode ini dapat membantu jaringan P2P mengelola skala pengguna yang lebih besar dengan efisiensi yang lebih tinggi.
+
+Di bawah ini adalah contoh penerapan sederhana untuk distribusi beban jaringan dalam P2P blockchain kita. Pendekatan ini menggunakan daftar node yang diperbarui secara berkala sehingga setiap node hanya perlu berinteraksi langsung dengan sebagian dari node lain di jaringan, mengurangi kebutuhan komunikasi berlebihan:
+
+```go
+// Membagi jaringan ke dalam kelompok-kelompok node
+type Shard struct {
+	Nodes []string // Daftar alamat node dalam satu shard
+}
+
+// Fungsi untuk membagi node menjadi shard
+func createShards(peers []string, shardSize int) []Shard {
+	var shards []Shard
+	for i := 0; i < len(peers); i += shardSize {
+		end := i + shardSize
+		if end > len(peers) {
+			end = len(peers)
+		}
+		shard := Shard{Nodes: peers[i:end]}
+		shards = append(shards, shard)
+	}
+	return shards
+}
+
+// Contoh penggunaan
+func main() {
+	peers := []string{"node1", "node2", "node3", "node4", "node5", "node6"}
+	shards := createShards(peers, 2) // Setiap shard memiliki 2 node
+	for i, shard := range shards {
+		fmt.Printf("Shard %d: %v\n", i+1, shard.Nodes)
+	}
+}
+```
+
+Dalam kode ini, kita membagi node di jaringan menjadi shard yang lebih kecil, sehingga setiap node hanya perlu mengelola komunikasi dalam shard-nya. Pendekatan ini membantu meringankan beban jaringan dengan membatasi interaksi langsung antar node, yang dapat meningkatkan skalabilitas dan efisiensi keseluruhan.

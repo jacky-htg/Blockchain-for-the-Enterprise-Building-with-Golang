@@ -48,7 +48,7 @@
 - Health Check dan Manajemen Peer
 - Menangani Peer yang Putus/Mati
 
-**Bab 9: Publikasi dan Subskripsi**
+[**Bab 9: Publikasi dan Subskripsi**](https://github.com/jacky-htg/Blockchain-for-the-Enterprise-Building-with-Golang/blob/main/Bab%209:%20Publikasi%20dan%20Subskripsi.md)
 - Apa itu Pub/Sub?
 - Implementasi Pub/Sub di Jaringan Blockchain
 - Menggunakan NATS atau Kafka untuk Pub/Sub
